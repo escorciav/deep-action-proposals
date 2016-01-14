@@ -93,7 +93,21 @@ def c3d_input_file_generator(filename, output_file, t_size=16, step_size=8,
 
 
 def count_frames(filename, method=None):
-    # Return number of frames of a video
+    """Count number of frames of a video
+
+    Parameters
+    ----------
+    filename : string
+        fullpath of video file
+    method : string, optional
+        algorithm to use (None, 'ffprobe')
+
+    Outputs
+    -------
+    counter : int
+        number of frames
+
+    """
     counter, fail_ffprobe = 0, False
     if method == 'ffprobe':
         cmd = ['ffprobe', '-v', 'error', '-count_frames', '-select_streams',
@@ -114,3 +128,23 @@ def count_frames(filename, method=None):
                 break
         cap.release()
     return counter
+
+
+def get_clip(filename, i_frame, duration):
+    """Return a clip from a video
+    """
+    if not os.path.isfile(filename):
+        return None
+
+    cap = cv2.VideoCapture(filename)
+    record, counter, length, clip = False, 0, 0, []
+    for i in xrange(0, i_frame):
+        success = cap.grab()
+    for i in xrange(0, duration):
+        success, img = cap.read()
+        if success:
+            clip.append(img)
+        else:
+            break
+    cap.release()
+    return np.stack(clip)
