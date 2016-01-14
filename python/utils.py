@@ -92,6 +92,8 @@ def c3d_input_file_generator(filename, output_file, t_size=16, step_size=8,
 # General purpose functions
 
 
+# General purpose functions
+
 def count_frames(filename, method=None):
     """Count number of frames of a video
 
@@ -130,14 +132,48 @@ def count_frames(filename, method=None):
     return counter
 
 
+def dump_frames(filename, output_folder):
+    """Dump frames of a video-file into a folder
+
+    Parameters
+    ----------
+    filename : string
+        Fullpath of video-file
+    output_folder : string
+        Fullpath of folder to place frames
+
+    Outputs
+    -------
+    success : bool
+
+    Note: this function makes use of ffmpeg and its results depends on it.
+
+    """
+    if not os.path.isdir(output_folder):
+        os.makedirs(output_folder)
+    n_frames, n = count_frames(filename, 'ffprobe'), 0
+    while n_frames > 0:
+        n_frames /= 10
+        n += 1
+
+    output_format = os.path.join(output_folder,
+                                 '%0' + str(max(6, n)) + 'd.jpg')
+    cmd = ['ffmpeg', '-v', 'error', '-i', filename, '-qscale:v', '2', '-f',
+           'image2', output_format]
+    try:
+        check_output(cmd)
+    except:
+        return False
+    return True
+
+
 def get_clip(filename, i_frame, duration):
     """Return a clip from a video
     """
     if not os.path.isfile(filename):
         return None
 
-    cap = cv2.VideoCapture(filename)
-    record, counter, length, clip = False, 0, 0, []
+    cap, clip = cv2.VideoCapture(filename), []
     for i in xrange(0, i_frame):
         success = cap.grab()
     for i in xrange(0, duration):
