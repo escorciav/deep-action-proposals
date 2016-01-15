@@ -167,6 +167,23 @@ def dump_frames(filename, output_folder):
     return True
 
 
+def file_as_folder(filename):
+    """Return a filename ending with os-path-separator
+
+    Parameters
+    ----------
+    filename : str
+        Fullpath filename
+
+    Outputs
+    -------
+    filename : str
+        Fullpath filename ending with os-path-separator
+
+    """
+    return os.path.splitext(filename)[0] + os.path.sep
+
+
 def get_clip(filename, i_frame, duration):
     """Return a clip from a video
     """
