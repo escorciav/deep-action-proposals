@@ -1,3 +1,4 @@
+import glob
 import os
 from subprocess import check_output
 
@@ -94,7 +95,7 @@ def c3d_input_file_generator(filename, output_file, t_size=16, step_size=8,
 
 # General purpose functions
 
-def count_frames(filename, method=None):
+def count_frames(filename, method=None, ext='*.jpg'):
     """Count number of frames of a video
 
     Parameters
@@ -103,6 +104,8 @@ def count_frames(filename, method=None):
         fullpath of video file
     method : string, optional
         algorithm to use (None, 'ffprobe')
+    ext : string, optional
+        image extension
 
     Outputs
     -------
@@ -111,14 +114,19 @@ def count_frames(filename, method=None):
 
     """
     counter, fail_ffprobe = 0, False
-    if method == 'ffprobe':
-        cmd = ['ffprobe', '-v', 'error', '-count_frames', '-select_streams',
-               'v:0', '-show_entries', 'stream=nb_read_frames', '-of',
-               'default=nokey=1:noprint_wrappers=1', filename]
-        try:
-            counter = int(check_output(cmd).replace('\n', ''))
-        except:
-            counter, fail_ffprobe = 0, True
+    if isinstance(method, str):
+        if method == 'ffprobe':
+            cmd = ['ffprobe', '-v', 'error', '-count_frames',
+                   '-select_streams', 'v:0', '-show_entries',
+                   'stream=nb_read_frames', '-of',
+                   'default=nokey=1:noprint_wrappers=1', filename]
+            try:
+                counter = int(check_output(cmd).replace('\n', ''))
+            except:
+                counter, fail_ffprobe = 0, True
+        else:
+            if os.path.isdir(filename):
+                counter = len(glob.glob(os.path.join(filename, ext)))
 
     if method is None or fail_ffprobe:
         cap = cv2.VideoCapture(filename)

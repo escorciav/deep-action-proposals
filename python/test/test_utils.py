@@ -42,3 +42,5 @@ def test_count_frames():
     filename = 'data/videos/example.mp4'
     assert utils.count_frames(filename) == 1507
     assert utils.count_frames(filename, 'ffprobe') == 1507
+    assert utils.count_frames(os.path.splitext(filename)[0],
+                              method='dir') == 1507
