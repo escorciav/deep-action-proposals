@@ -28,17 +28,22 @@ def dump_video_list(filename):
     df.to_csv(filename, sep=' ', header=None, index=False)
 
 
-def list_zero_indexded(filename, new_file, no_ext=True):
-    """Save UCF train/test list using 0-indexing for labels
+def list_zero_indexded(filename, new_file=None, no_ext=True):
+    """Return a DataFrame from UCF train/test list using 0-indexed labels
 
     Parameters
     ----------
     filename : str
-        Fullpath of UCF-list
-    new_file : str
-        Fullpath of new list
+        Fullpath of UCF-list.
+    new_file : str, optional
+        Fullpath with new list.
     no_ext : bool, optional
-        replace extension by path separator on each file
+        replace extension by path separator on each file.
+
+    Outputs
+    -------
+    new_df : pandas.DataFrame
+        table with video-list and labels.
 
     """
     df = pd.read_csv(filename, sep=' ', header=None)
@@ -55,5 +60,6 @@ def list_zero_indexded(filename, new_file, no_ext=True):
     else:
         new_df = df_videos
 
-    new_df.to_csv(new_file, header=None, sep=' ', index=False)
-    return None
+    if new_file is not None:
+        new_df.to_csv(new_file, header=None, sep=' ', index=False)
+    return new_df
