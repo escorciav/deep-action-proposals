@@ -7,7 +7,7 @@ from utils import file_as_folder
 # TODO: Make a class packing all this function
 
 
-def csv_to_dump_frames(filename):
+def dump_video_list(filename):
     """Read all train-test list of UCF-101 and create csv with all videos
 
     Parameters
@@ -18,13 +18,13 @@ def csv_to_dump_frames(filename):
     """
     arr = []
     prefix = 'data/ucf101/ucfTrainTestlist'
-    ucf_lists = ['trainlist01.txt', 'trainlist02.txt', 'trainlist03.txt',
-                 'testlist01.txt', 'testlist02.txt', 'testlist03.txt']
+    ucf_lists = ['trainlist01.txt', 'trainlist02.txt', 'trainlist03.txt']
     for i in ucf_lists:
         arr.append(np.array(pd.read_csv(os.path.join(prefix, i),
-                                        sep=' ', header=None).loc[:, 0]))
-    video_list = np.hstack(arr)
-    df = pd.DataFrame(np.unique(video_list))
+                                        sep=' ', header=None)))
+    video_list = np.concatenate(arr, axis=0)
+    _, idx = np.unique(video_list[:, 0], return_index=True)
+    df = pd.DataFrame(video_list[idx, :])
     df.to_csv(filename, sep=' ', header=None, index=False)
 
 
