@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from utils import file_as_folder
+from utils import count_frames, file_as_folder
 # TODO: Make a class packing all this function
 
 
@@ -63,3 +63,39 @@ def list_zero_indexded(filename, new_file=None, no_ext=True):
     if new_file is not None:
         new_df.to_csv(new_file, header=None, sep=' ', index=False)
     return new_df
+
+
+def dump_segment_list(filename, new_file, cf_method='dir', cf_ext='*.jpg'):
+    """Dump CSV required for extracting C3D features
+
+    Parameters
+    ----------
+    filename : str
+        Fullpath of csv-file with list of videos
+    new_file : str
+        Fullpath of new csv-file
+    cf_method : str, optional
+        method used by count_frame function
+    cf_ext : str, optional
+        image extension used by count_frame if cf_method == 'dir'
+
+    TODO
+    - Read database or JSON instead on counting every-time
+    """
+    df = list_zero_indexded(filename)
+    n_videos, n_cols = df.shape
+
+    if n_cols > 1:
+        labels = df.loc[:, 1]
+    else:
+        labels = np.zeros(n_videos, dtype=int)
+
+    if cf_method != 'dir':
+        i_frame = np.zeros(n_videos, dtype=int)
+    else:
+        i_frame = np.ones(n_videos, dtype=int)
+
+    duration = df.loc[:, 0].apply(count_frames, args=(cf_method, cf_ext))
+    new_df = pd.DataFrame({1: df.loc[:, 0], 2: duration, 3: i_frame,
+                           4: duration, 5: labels})
+    new_df.to_csv(new_file, sep=' ', header=None, index=False)
