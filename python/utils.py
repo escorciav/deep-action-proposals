@@ -72,6 +72,9 @@ def c3d_input_file_generator(filename, output_file, t_size=16, step_size=8,
             sr_out = (output_folder + os.path.sep +
                       df.loc[idx_keep_expanded, 'video-name'].astype(str) +
                       os.path.sep + init_end_frame.astype(str))
+            # Avoid redundacy such that A//B introduce by previous cmd. A
+            # principled solution is welcome.
+            sr_out = sr_out.apply(os.path.normpath)
             sr_out.to_csv(output_file[1], header=None, index=False)
         except:
             skip_mkdir = True
