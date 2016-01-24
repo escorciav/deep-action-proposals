@@ -44,3 +44,8 @@ def test_count_frames():
     assert utils.count_frames(filename, 'ffprobe') == 1507
     assert utils.count_frames(os.path.splitext(filename)[0],
                               method='dir') == 1507
+
+
+def test_frame_rate():
+    assert isinstance(utils.frame_rate('data/videos/examples.mp4'), float)
+    assert utils.frame_rate('nonexistent.video') == 0.0
