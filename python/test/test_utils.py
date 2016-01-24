@@ -49,3 +49,8 @@ def test_count_frames():
 def test_frame_rate():
     assert isinstance(utils.frame_rate('data/videos/examples.mp4'), float)
     assert utils.frame_rate('nonexistent.video') == 0.0
+
+
+def test_video_duration():
+    assert isinstance(utils.video_duration('data/videos/examples.mp4'), float)
+    assert utils.video_duration('nonexistent.video') == 0.0

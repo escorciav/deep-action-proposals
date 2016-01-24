@@ -239,3 +239,29 @@ def get_clip(filename, i_frame, duration):
             break
     cap.release()
     return np.stack(clip)
+
+
+def video_duration(filename):
+    """Return frame-rate of video
+
+    Parameters
+    ----------
+    filename : stri
+        Fullpath of video-file
+
+    Outputs
+    -------
+    frame_rate : float
+
+    Note: this function makes use of ffprobe and its results depends on it.
+
+    """
+    if os.path.isfile(filename):
+        cmd = ('ffprobe -v 0 -of flat=s=_ -select_streams v:0 -show_entries ' +
+               'stream=duration -of default=nokey=1:noprint_wrappers=1 ' +
+               filename).split()
+        fr_exp = check_output(cmd)
+        return eval(compile(fr_exp, '<string>', 'eval',
+                            __future__.division.compiler_flag))
+    else:
+        return 0.0
