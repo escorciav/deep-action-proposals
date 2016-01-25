@@ -1,9 +1,14 @@
+import difflib
+import glob
 import os
 
 import pandas as pd
+import numpy as np
+
+from utils import levenshtein_distance
 
 
-class thumos14(object):
+class Thumos14(object):
     def __init__(self, dirname='data/thumos14'):
         """Initialize thumos14 class
 
@@ -21,15 +26,46 @@ class thumos14(object):
         filename = os.path.join(self.root, 'class_index_detection.txt')
         self.df_index_labels = pd.read_csv(filename, header=None, sep=' ')
 
+        self.files_video_list = [
+            os.path.join(self.root, 'metadata', 'val_list.txt'),
+            os.path.join(self.root, 'metadata', 'test_list.txt')]
+        msg = 'Unexistent list of {} videos and its information'
         # TODO: Generate list if not exist
-        if not os.path.isfile(os.path.join(self.root, 'metadata',
-                                           'val_list.txt')):
-            msg = 'Unexistent list of validation videos and its information'
-            raise IOError(msg)
-        if not os.path.isfile(os.path.join(self.root, 'metadata',
-                                           'test_list.txt')):
-            msg = 'Unexistent list of testing videos and its information'
-            raise IOError(msg)
+        if not os.path.isfile(self.files_video_list[0]):
+            raise IOError(msg.format('validation'))
+        if not os.path.isfile(self.files_video_list[1]):
+            raise IOError(msg.format('testing'))
+
+    def annotation_files(self, set_choice='val'):
+        """
+        Return a list with files of temporal annotations of THUMOS-14 actions
+
+        Parameters
+        ----------
+        set_choice : string, optional
+            ('val' or 'test') set of interest
+
+        """
+        dirname = self.dir_annotations(set_choice)
+        return glob.glob(os.path.join(dirname, 'annotation', '*.txt'))
+
+    def dir_annotations(self, set_choice='val'):
+        """Return string of folder of annotations
+
+        Parameters
+        ----------
+        set_choice : string, optional
+            ('val' or 'test') set of interest
+
+        """
+        set_choice = set_choice.lower()
+        if set_choice == 'val' or set_choice == 'validation':
+            return os.path.join(self.root, 'th14_temporal_annotations_val')
+        elif (set_choice == 'test' or set_choice == 'testing' or
+              set_choice == 'tst'):
+            return os.path.join(self.root, 'th14_temporal_annotations_test')
+        else:
+            raise ValueError('unrecognized choice')
 
     def dir_videos(self, set_choice='val'):
         """Return string of folder with videos
@@ -48,3 +84,95 @@ class thumos14(object):
             return os.path.join(self.root, 'test_mp4')
         else:
             raise ValueError('unrecognized choice')
+
+    def index_from_filename(self, filename):
+        """Return index btw [-1, 20) of action inside filename
+        """
+        basename = os.path.basename(os.path.splitext(filename)[0])
+        if 'Ambiguous' in basename:
+            return -1
+        else:
+            match = difflib.get_close_matches(basename,
+                                              self.df_index_labels.loc[:, 1])
+            return np.where(self.df_index_labels.loc[:, 1] == match[0])[0]
+
+    def segments_info(self, set_choice='val', filename=None):
+        """Return a DataFrame with information about THUMOS-14 action segments
+
+        Parameters
+        ----------
+        set_choice : string, optional
+            ('val' or 'test') dump annotations of the corresponding set
+        filename : string, optional
+            Fullpath of CSV-file to generate OR read
+
+        """
+        columns = ['video-name', 't-init', 't-end', 'f-init', 'n-frames',
+                   'frame-rate', 'label-idx']
+        if isinstance(filename, str):
+            if os.path.isfile(filename):
+                df = pd.read_csv(filename, header=None, sep=' ')
+                if df.shape[1] == 7:
+                    df.columns = columns
+                else:
+                    raise ValueError('Inconsistent number of columns')
+                return df
+
+        # Read annotations and create labels (0-indexed)
+        files = self.annotation_files(set_choice)
+        list_df, list_arr = [], []
+        for i in files:
+            list_df.append(pd.read_csv(i, header=None, sep=' '))
+            n = list_df[-1].shape[0]
+            list_arr.append(np.ones(n, dtype=int) *
+                            self.index_from_filename(i))
+        df_s = pd.concat(list_df, ignore_index=True)
+        df_l = pd.DataFrame(np.concatenate(list_arr, axis=0),
+                            columns=['labels'])
+
+        # Read video list
+        df_v = self.video_info(set_choice)
+
+        # Match frame-rate of each segment
+        video_id, idx = np.unique(df_s.loc[:, 0], return_inverse=True)
+        d = np.zeros((video_id.size, df_v.shape[0]))
+        for i, u in enumerate(video_id):
+            for j, v in enumerate(df_v.loc[:, 0]):
+                d[i, j] = levenshtein_distance(u, v)
+        fr_idx = d.argmin(axis=1)
+        frame_rate = np.array(df_v.loc[fr_idx[idx], 2])
+
+        # Compute initial-frame, ending-frame, num-frames
+        f_i = np.round(frame_rate * np.array(df_s.loc[:, 2]))
+        f_e = np.round(frame_rate * np.array(df_s.loc[:, 3]))
+        n_frames = f_e - f_i + 1
+
+        # Create DataFrame
+        df = pd.concat([df_s.loc[:, 0], df_s.loc[:, 2::],
+                        pd.DataFrame(f_i), pd.DataFrame(n_frames),
+                        pd.DataFrame(frame_rate), df_l],
+                       axis=1, ignore_index=True, names=columns)
+        df.columns = columns
+        if isinstance(filename, str):
+            df.to_csv(filename, sep=' ', index=False, header=None)
+        return df
+
+    def video_info(self, set_choice='val'):
+        """Return DataFrame with info about videos on the corresponding set
+
+        Parameters
+        ----------
+        set_choice : string
+            ('val' or 'test') set of interest
+
+        """
+        set_choice = set_choice.lower()
+        if set_choice == 'val' or set_choice == 'validation':
+            filename = self.files_video_list[0]
+        elif (set_choice == 'test' or set_choice == 'testing' or
+              set_choice == 'tst'):
+            filename = self.files_video_list[1]
+        else:
+            raise ValueError('unrecognized choice')
+
+        return pd.read_csv(filename, sep=' ', header=None)
