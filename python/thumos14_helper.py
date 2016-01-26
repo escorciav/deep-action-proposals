@@ -36,6 +36,14 @@ class Thumos14(object):
         if not os.path.isfile(self.files_video_list[1]):
             raise IOError(msg.format('testing'))
 
+        self.files_seg_list = [
+            os.path.join(self.root, 'metadata', 'val_segments_list.txt'),
+            os.path.join(self.root, 'metadata', 'test_segments_list.txt')]
+        if not os.path.isfile(self.files_seg_list[0]):
+            self._gen_segments_info(self.files_seg_list[0], 'val')
+        if not os.path.isfile(self.files_seg_list[1]):
+            self._gen_segments_info(self.files_seg_list[1], 'test')
+
     def annotation_files(self, set_choice='val'):
         """
         Return a list with files of temporal annotations of THUMOS-14 actions
@@ -85,39 +93,17 @@ class Thumos14(object):
         else:
             raise ValueError('unrecognized choice')
 
-    def index_from_filename(self, filename):
-        """Return index btw [-1, 20) of action inside filename
-        """
-        basename = os.path.basename(os.path.splitext(filename)[0])
-        if 'Ambiguous' in basename:
-            return -1
-        else:
-            match = difflib.get_close_matches(basename,
-                                              self.df_index_labels.loc[:, 1])
-            return np.where(self.df_index_labels.loc[:, 1] == match[0])[0]
-
-    def segments_info(self, set_choice='val', filename=None):
-        """Return a DataFrame with information about THUMOS-14 action segments
+    def _gen_segments_info(self, filename, set_choice):
+        """Create CSV with information about THUMOS-14 action segments
 
         Parameters
         ----------
-        set_choice : string, optional
+        filename : str
+            Fullpath of CSV-file
+        set_choice : str
             ('val' or 'test') dump annotations of the corresponding set
-        filename : string, optional
-            Fullpath of CSV-file to generate OR read
 
         """
-        columns = ['video-name', 't-init', 't-end', 'f-init', 'n-frames',
-                   'frame-rate', 'label-idx']
-        if isinstance(filename, str):
-            if os.path.isfile(filename):
-                df = pd.read_csv(filename, header=None, sep=' ')
-                if df.shape[1] == 7:
-                    df.columns = columns
-                else:
-                    raise ValueError('Inconsistent number of columns')
-                return df
-
         # Read annotations and create labels (0-indexed)
         files = self.annotation_files(set_choice)
         list_df, list_arr = [], []
@@ -151,10 +137,47 @@ class Thumos14(object):
         df = pd.concat([df_s.loc[:, 0], df_s.loc[:, 2::],
                         pd.DataFrame(f_i), pd.DataFrame(n_frames),
                         pd.DataFrame(frame_rate), df_l],
-                       axis=1, ignore_index=True, names=columns)
-        df.columns = columns
+                       axis=1, ignore_index=True)
         if isinstance(filename, str):
             df.to_csv(filename, sep=' ', index=False, header=None)
+        return df
+
+    def index_from_filename(self, filename):
+        """Return index btw [-1, 20) of action inside filename
+        """
+        basename = os.path.basename(os.path.splitext(filename)[0])
+        if 'Ambiguous' in basename:
+            return -1
+        else:
+            match = difflib.get_close_matches(basename,
+                                              self.df_index_labels.loc[:, 1])
+            return np.where(self.df_index_labels.loc[:, 1] == match[0])[0]
+
+    def segments_info(self, set_choice='val', filename=None):
+        """Return a DataFrame with information about THUMOS-14 action segments
+
+        Parameters
+        ----------
+        set_choice : string, optional
+            ('val' or 'test') dump annotations of the corresponding set
+
+        """
+        set_choice = set_choice.lower()
+        if set_choice == 'val' or set_choice == 'validation':
+            filename = self.files_seg_list[0]
+        elif (set_choice == 'test' or set_choice == 'testing' or
+              set_choice == 'tst'):
+            filename = self.files_seg_list[1]
+        else:
+            raise ValueError('unrecognized choice')
+
+        columns = ['video-name', 't-init', 't-end', 'f-init', 'n-frames',
+                   'frame-rate', 'label-idx']
+        df = pd.read_csv(filename, header=None, sep=' ')
+        if df.shape[1] == 7:
+            df.columns = columns
+        else:
+            raise ValueError('Inconsistent number of columns')
         return df
 
     def video_info(self, set_choice='val'):
