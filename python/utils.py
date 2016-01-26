@@ -5,6 +5,7 @@ from subprocess import check_output
 
 import cv2
 import numpy as np
+import natsort
 import pandas as pd
 
 
@@ -97,8 +98,7 @@ def c3d_input_file_generator(filename, output_file, t_size=16, step_size=8,
 # General purpose functions
 
 
-# General purpose functions
-
+# Video utilities
 def count_frames(filename, method=None, ext='*.jpg'):
     """Count number of frames of a video
 
@@ -179,21 +179,29 @@ def dump_frames(filename, output_folder):
     return True
 
 
-def file_as_folder(filename):
-    """Return a filename ending with os-path-separator
+def dump_video(filename, clip, fourcc_str='X264', fps=30.0):
+    """Write video on disk from a stack of images
 
     Parameters
     ----------
     filename : str
-        Fullpath filename
-
-    Outputs
-    -------
-    filename : str
-        Fullpath filename ending with os-path-separator
+        Fullpath of video-file to generate
+    clip : ndarray
+        ndarray where first dimension is used to refer to i-th frame
+    fourcc_str : str
+        str to retrieve fourcc from opencv
+    fps : float
+        frame rate of create video-stream
 
     """
-    return os.path.splitext(filename)[0] + os.path.sep
+    fourcc = cv2.cv.CV_FOURCC(**list(fourcc_str))
+    fid = cv2.VideoWriter(filename, fourcc, fps, clip.shape[0:2])
+    if fid.isOpened():
+        for i in xrange(clip.shape[0]):
+                fid.write(clip[i, ...])
+        return True
+    else:
+        return False
 
 
 def frame_rate(filename):
@@ -222,25 +230,91 @@ def frame_rate(filename):
         return 0.0
 
 
-def get_clip(filename, i_frame, duration):
+def get_clip(filename, i_frame=0, duration=1, ext='.jpg', img_list=None):
     """Return a clip from a video
-    """
-    if not os.path.isfile(filename):
-        return None
 
-    cap, clip = cv2.VideoCapture(filename), []
-    for i in xrange(0, i_frame):
-        success = cap.grab()
-    for i in xrange(0, duration):
-        success, img = cap.read()
-        if success:
-            clip.append(img)
-        else:
-            break
-    cap.release()
+    Parameters
+    ----------
+    filename : str
+        Fullpath of video-stream or img-dir
+    i_frame : int, optional
+        Index of initial frame to capture, 0-indexed.
+    duration : int, optional
+        duration of clip
+    ext : str
+        Extension of image-files in case filename is dir
+    img_list : list, optional
+        list, is a set of strings with basename of images to stack.
+
+    Outputs
+    -------
+    clip : ndarray
+        numpy array of stacked frames
+
+    """
+    clip = []
+    if os.path.isdir(filename):
+        if img_list is None:
+            img_files = glob.glob(os.path.join(filename, '*' + ext))
+            img_files_s = natsort.natsorted(img_files)
+            img_list = img_files_s[i_frame:i_frame + duration]
+
+        # Make a clip from a list of images in filename dir
+        if isinstance(img_list, list):
+            for i in img_list:
+                img_name = i
+                if filename not in i:
+                    img_name = os.path.join(filename, i)
+
+                if os.path.isfile(img_name):
+                    img = cv2.imread(img_name)
+                    if img is not None:
+                        clip.append(img)
+                else:
+                    raise IOError('unknown file {}'.format(img_name))
+    elif os.path.isfile(filename):
+        cap = cv2.VideoCapture(filename)
+        for i in xrange(0, i_frame):
+            success = cap.grab()
+        for i in xrange(0, duration):
+            success, img = cap.read()
+            if success:
+                clip.append(img)
+            else:
+                break
+        cap.release()
+    else:
+        return None
     return np.stack(clip)
 
 
+def video_duration(filename):
+    """Return frame-rate of video
+
+    Parameters
+    ----------
+    filename : stri
+        Fullpath of video-file
+
+    Outputs
+    -------
+    frame_rate : float
+
+    Note: this function makes use of ffprobe and its results depends on it.
+
+    """
+    if os.path.isfile(filename):
+        cmd = ('ffprobe -v 0 -of flat=s=_ -select_streams v:0 -show_entries ' +
+               'stream=duration -of default=nokey=1:noprint_wrappers=1 ' +
+               filename).split()
+        fr_exp = check_output(cmd)
+        return eval(compile(fr_exp, '<string>', 'eval',
+                            __future__.division.compiler_flag))
+    else:
+        return 0.0
+
+
+# String utilities
 def levenshtein_distance(s1, s2):
     """Compute Levenshtein distance btw two strings
 
@@ -271,27 +345,19 @@ def levenshtein_distance(s1, s2):
     return previous_row[-1]
 
 
-def video_duration(filename):
-    """Return frame-rate of video
+# IO utilities
+def file_as_folder(filename):
+    """Return a filename ending with os-path-separator
 
     Parameters
     ----------
-    filename : stri
-        Fullpath of video-file
+    filename : str
+        Fullpath filename
 
     Outputs
     -------
-    frame_rate : float
-
-    Note: this function makes use of ffprobe and its results depends on it.
+    filename : str
+        Fullpath filename ending with os-path-separator
 
     """
-    if os.path.isfile(filename):
-        cmd = ('ffprobe -v 0 -of flat=s=_ -select_streams v:0 -show_entries ' +
-               'stream=duration -of default=nokey=1:noprint_wrappers=1 ' +
-               filename).split()
-        fr_exp = check_output(cmd)
-        return eval(compile(fr_exp, '<string>', 'eval',
-                            __future__.division.compiler_flag))
-    else:
-        return 0.0
+    return os.path.splitext(filename)[0] + os.path.sep
