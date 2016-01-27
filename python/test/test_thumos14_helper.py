@@ -21,9 +21,15 @@ class test_thumos14(unittest.TestCase):
         idx = [16, -1]
         for i, v in enumerate(actions):
             self.assertEqual(idx[i], self.thumos.index_from_filename(v))
+
     def test_segments_info(self):
         for i in ['val', 'test']:
             result = self.thumos.segments_info(i)
             self.assertTrue(isinstance(result, pd.DataFrame))
             self.assertEqual(7, result.shape[1])
 
+    def test_video_info(self):
+        for i in ['val', 'test']:
+            result = self.thumos.video_info(i)
+            self.assertTrue(isinstance(result, pd.DataFrame))
+            self.assertEqual(4, result.shape[1])

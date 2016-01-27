@@ -26,6 +26,9 @@ class Thumos14(object):
         filename = os.path.join(self.root, 'class_index_detection.txt')
         self.df_index_labels = pd.read_csv(filename, header=None, sep=' ')
 
+        # Video CSV
+        self.fields_video = ['video-name', 'duration', 'frame-rate',
+                             'n-frames']
         self.files_video_list = [
             os.path.join(self.root, 'metadata', 'val_list.txt'),
             os.path.join(self.root, 'metadata', 'test_list.txt')]
@@ -36,6 +39,7 @@ class Thumos14(object):
         if not os.path.isfile(self.files_video_list[1]):
             raise IOError(msg.format('testing'))
 
+        # Segments CSV
         self.fields_segment = ['video-name', 't-init', 't-end', 'f-init',
                                'n-frames', 'frame-rate', 'label-idx']
         self.files_seg_list = [
@@ -174,7 +178,7 @@ class Thumos14(object):
             raise ValueError('unrecognized choice')
 
         df = pd.read_csv(filename, header=None, sep=' ')
-        if df.shape[1] == 7:
+        if df.shape[1] == len(self.fields_segment):
             df.columns = self.fields_segment
         else:
             raise ValueError('Inconsistent number of columns')
@@ -198,4 +202,9 @@ class Thumos14(object):
         else:
             raise ValueError('unrecognized choice')
 
-        return pd.read_csv(filename, sep=' ', header=None)
+        df = pd.read_csv(filename, header=None, sep=' ')
+        if df.shape[1] == len(self.fields_video):
+            df.columns = self.fields_video
+        else:
+            raise ValueError('Inconsistent number of columns')
+        return df
