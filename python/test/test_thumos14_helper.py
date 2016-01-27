@@ -16,13 +16,14 @@ class test_thumos14(unittest.TestCase):
         self.assertEqual(21, len(self.thumos.annotation_files()))
         self.assertEqual(21, len(self.thumos.annotation_files('test')))
 
-    def test_segments_info(self):
-        result = self.thumos.segments_info('test')
-        self.assertTrue(isinstance(result, pd.DataFrame))
-        self.assertEqual(7, result.shape[1])
-
     def test_index_from_filename(self):
         actions = ['SoccerPenalty_val.txt', 'b/Ambiguous_val.txt']
         idx = [16, -1]
         for i, v in enumerate(actions):
             self.assertEqual(idx[i], self.thumos.index_from_filename(v))
+    def test_segments_info(self):
+        for i in ['val', 'test']:
+            result = self.thumos.segments_info(i)
+            self.assertTrue(isinstance(result, pd.DataFrame))
+            self.assertEqual(7, result.shape[1])
+
