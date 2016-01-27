@@ -36,6 +36,8 @@ class Thumos14(object):
         if not os.path.isfile(self.files_video_list[1]):
             raise IOError(msg.format('testing'))
 
+        self.fields_segment = ['video-name', 't-init', 't-end', 'f-init',
+                               'n-frames', 'frame-rate', 'label-idx']
         self.files_seg_list = [
             os.path.join(self.root, 'metadata', 'val_segments_list.txt'),
             os.path.join(self.root, 'metadata', 'test_segments_list.txt')]
@@ -171,11 +173,9 @@ class Thumos14(object):
         else:
             raise ValueError('unrecognized choice')
 
-        columns = ['video-name', 't-init', 't-end', 'f-init', 'n-frames',
-                   'frame-rate', 'label-idx']
         df = pd.read_csv(filename, header=None, sep=' ')
         if df.shape[1] == 7:
-            df.columns = columns
+            df.columns = self.fields_segment
         else:
             raise ValueError('Inconsistent number of columns')
         return df
