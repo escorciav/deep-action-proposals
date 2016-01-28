@@ -26,10 +26,10 @@ class test_thumos14(unittest.TestCase):
         for i in ['val', 'test']:
             result = self.thumos.segments_info(i)
             self.assertTrue(isinstance(result, pd.DataFrame))
-            self.assertEqual(7, result.shape[1])
+            self.assertEqual(len(self.thumos.fields_segment), result.shape[1])
 
     def test_video_info(self):
         for i in ['val', 'test']:
             result = self.thumos.video_info(i)
             self.assertTrue(isinstance(result, pd.DataFrame))
-            self.assertEqual(4, result.shape[1])
+            self.assertEqual(len(self.thumos.fields_video), result.shape[1])
