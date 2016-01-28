@@ -152,8 +152,9 @@ class Thumos14(object):
                         video_dur, pd.DataFrame(frame_rate),
                         video_frames, df_l],
                        axis=1, ignore_index=True)
+        df.columns = self.fields_segment
         if isinstance(filename, str):
-            df.to_csv(filename, sep=' ', index=False, header=None)
+            df.to_csv(filename, sep=' ', index=False)
         return df
 
     def index_from_filename(self, filename):
@@ -185,10 +186,8 @@ class Thumos14(object):
         else:
             raise ValueError('unrecognized choice')
 
-        df = pd.read_csv(filename, header=None, sep=' ')
-        if df.shape[1] == len(self.fields_segment):
-            df.columns = self.fields_segment
-        else:
+        df = pd.read_csv(filename, sep=' ')
+        if df.shape[1] != len(self.fields_segment):
             raise ValueError('Inconsistent number of columns')
         return df
 
@@ -210,9 +209,7 @@ class Thumos14(object):
         else:
             raise ValueError('unrecognized choice')
 
-        df = pd.read_csv(filename, header=None, sep=' ')
-        if df.shape[1] == len(self.fields_video):
-            df.columns = self.fields_video
-        else:
+        df = pd.read_csv(filename, sep=' ')
+        if df.shape[1] != len(self.fields_video):
             raise ValueError('Inconsistent number of columns')
         return df
