@@ -9,6 +9,11 @@ from utils import levenshtein_distance
 
 
 class Thumos14(object):
+    fields_video = ['video-name', 'duration', 'frame-rate', 'n-frames']
+    fields_segment = ['video-name', 't-init', 't-end', 'f-init', 'n-frames',
+                      'video-duration', 'frame-rate', 'video-frames',
+                      'label-idx']
+
     def __init__(self, dirname='data/thumos14'):
         """Initialize thumos14 class
 
@@ -27,8 +32,6 @@ class Thumos14(object):
         self.df_index_labels = pd.read_csv(filename, header=None, sep=' ')
 
         # Video CSV
-        self.fields_video = ['video-name', 'duration', 'frame-rate',
-                             'n-frames']
         self.files_video_list = [
             os.path.join(self.root, 'metadata', 'val_list.txt'),
             os.path.join(self.root, 'metadata', 'test_list.txt')]
@@ -40,8 +43,6 @@ class Thumos14(object):
             raise IOError(msg.format('testing'))
 
         # Segments CSV
-        self.fields_segment = ['video-name', 't-init', 't-end', 'f-init',
-                               'n-frames', 'frame-rate', 'label-idx']
         self.files_seg_list = [
             os.path.join(self.root, 'metadata', 'val_segments_list.txt'),
             os.path.join(self.root, 'metadata', 'test_segments_list.txt')]
@@ -129,10 +130,12 @@ class Thumos14(object):
         video_id, idx = np.unique(df_s.loc[:, 0], return_inverse=True)
         d = np.zeros((video_id.size, df_v.shape[0]))
         for i, u in enumerate(video_id):
-            for j, v in enumerate(df_v.loc[:, 0]):
+            for j, v in enumerate(df_v.loc[:, 'video-name']):
                 d[i, j] = levenshtein_distance(u, v)
-        fr_idx = d.argmin(axis=1)
-        frame_rate = np.array(df_v.loc[fr_idx[idx], 2])
+        idx_map_vid2seg = d.argmin(axis=1)[idx]
+        video_dur = df_v.loc[idx_map_vid2seg, 'duration']
+        frame_rate = np.array(df_v.loc[idx_map_vid2seg, 'frame-rate'])
+        video_frames = df_v.loc[idx_map_vid2seg, 'n-frames']
 
         # Compute initial-frame, ending-frame, num-frames
         f_i = np.round(frame_rate * np.array(df_s.loc[:, 2]))
@@ -140,9 +143,14 @@ class Thumos14(object):
         n_frames = f_e - f_i + 1
 
         # Create DataFrame
+        # df_s[:, 1] is ignored because Thumos14 annotation includes extra
+        # blank space.
+        # Explicit reindexing is required to avoid Reindexing-Error.
+        video_dur.index = video_frames.index = range(video_dur.size)
         df = pd.concat([df_s.loc[:, 0], df_s.loc[:, 2::],
                         pd.DataFrame(f_i), pd.DataFrame(n_frames),
-                        pd.DataFrame(frame_rate), df_l],
+                        video_dur, pd.DataFrame(frame_rate),
+                        video_frames, df_l],
                        axis=1, ignore_index=True)
         if isinstance(filename, str):
             df.to_csv(filename, sep=' ', index=False, header=None)
