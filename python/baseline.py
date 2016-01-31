@@ -102,6 +102,7 @@ class BaselineData(object):
 
 class TempPriorsNoScale(object):
     def __init__(self, n_prop=200):
+        self.n_prop = n_prop
         self.model = Pipeline([('scaling', StandardScaler()),
                                ('kmeans', KMeans(n_prop))])
 
@@ -114,7 +115,7 @@ class TempPriorsNoScale(object):
         sigma = self.model.steps[0][1].scale_
         self.priors = norm_priors * sigma + mu
 
-    def proposals(self, X):
+    def proposals(self, X, return_index=False):
         """Retrieve proposals for a video based on its duration
 
         Parameters
@@ -128,4 +129,8 @@ class TempPriorsNoScale(object):
             m * n_prop x 2 array with temporal proposals
 
         """
-        return np.kron(np.expand_dims(X, 1), self.priors)
+        Y = np.kron(np.expand_dims(X, 1), self.priors)
+        idx = np.repeat(np.arange(X.shape[0]), self.n_prop)
+        if return_index:
+            return Y, idx
+        return Y
