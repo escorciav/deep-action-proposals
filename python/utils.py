@@ -338,6 +338,8 @@ def segment_intersection(target_segments, test_segments,
         2-dim array [m x n] with ratio btw size of intersect over size of
         target segment
 
+    Note: It assumes that target-segments are more scarce that test-segments
+
     """
     if target_segments.ndim != 2 or test_segments.ndim != 2:
         raise ValueError('Dimension of arguments is incorrect')
