@@ -1,10 +1,10 @@
-import json
-
 import numpy as np
 import pandas as pd
 
 from baseline import BaselineData, TempPriorsNoScale
 from baseline import temp_annot_transf, proposals_per_video
+
+from utils import dump_json
 
 NUM_PROPOSALS = [1, 10] + range(100, 1000, 100) + range(1000, 10001, 1000)
 
@@ -36,8 +36,5 @@ def eval_temporal_priors(train_file, test_file, n_prop=NUM_PROPOSALS,
 
         if isinstance(filename, str):
             idfile = filename + '.n-prop_{}'.format(v)
-            # It may be useful to move it in oder to avoid IO prob and use the
-            # same format
-            with open(idfile, 'w') as f:
-                json.dump(id_prop, f)
+            dump_json(idfile, id_prop)
     return None

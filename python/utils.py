@@ -1,4 +1,5 @@
 import glob
+import json
 import os
 import __future__
 from subprocess import check_output
@@ -346,6 +347,21 @@ def levenshtein_distance(s1, s2):
 
 
 # IO utilities
+def dump_json(filename, data, **kwargs):
+    """Serialize data as JSON-file
+
+    Parameters
+    ----------
+    filename : str
+    data : list, dict, etc.
+        Data to save. Chech json.dump for more details and description.
+
+    """
+    with open(filename, 'w') as f:
+        json.dump(data, f, **kwargs)
+    return None
+
+
 def file_as_folder(filename):
     """Return a filename ending with os-path-separator
 
