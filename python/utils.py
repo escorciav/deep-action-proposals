@@ -315,6 +315,52 @@ def video_duration(filename):
         return 0.0
 
 
+# Segment utilities
+def segment_intersection(target_segments, test_segments,
+                         return_ratio_target=False):
+    """Compute intersection btw segments
+
+    Parameters
+    ----------
+    target_segments : ndarray
+        2-dim array in format [m x 2:=[init, end]]
+    test_segments : ndarray
+        2-dim array in format [n x 2:=[init, end]]
+    return_ratio_target : bool, optional
+        extra ndarray output with ratio btw size of intersection over size of
+        target-segments
+
+    Outputs
+    -------
+    intersect : ndarray
+        3-dim array in format [m, n, 2:=[init, end]]
+    ratio_target : ndarray
+        2-dim array [m x n] with ratio btw size of intersect over size of
+        target segment
+
+    """
+    if target_segments.ndim != 2 or test_segments.ndim != 2:
+        raise ValueError('Dimension of arguments is incorrect')
+    m, n = target_segments.shape[0], test_segments.shape[0]
+    if return_ratio_target:
+        ratio_target = np.zeros((m, n))
+
+    intersect = np.zeros((m, n, 2))
+    for i in xrange(m):
+        target_size = target_segments[i, 1] - target_segments[i, 0] + 1.0
+        tt1 = np.maximum(target_segments[i, 0], test_segments[:, 0])
+        tt2 = np.minimum(target_segments[i, 1], test_segments[:, 1])
+
+        intersect[i, :, 0], intersect[i, :, 1] = tt1, tt2
+        if return_ratio_target:
+            isegs_size = (tt2 - tt1 + 1.0).clip(0)
+            ratio_target[i, :] = isegs_size / target_size
+
+    if return_ratio_target:
+        return intersect, ratio_target
+    return intersect
+
+
 # String utilities
 def levenshtein_distance(s1, s2):
     """Compute Levenshtein distance btw two strings

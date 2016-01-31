@@ -1,7 +1,10 @@
 import os
 import shutil
 import tempfile
+import unittest
 from subprocess import check_output
+
+import numpy as np
 
 import utils
 
@@ -54,3 +57,35 @@ def test_frame_rate():
 def test_video_duration():
     assert isinstance(utils.video_duration('data/videos/examples.mp4'), float)
     assert utils.video_duration('nonexistent.video') == 0.0
+
+
+class test_segment_utilities(unittest.TestCase):
+    def test_segment_intersection(self):
+        a = np.random.rand(1)
+        b = np.array([[1, 10], [5, 20], [16, 25]])
+        self.assertRaises(ValueError, utils.segment_intersection, a, b)
+        a = np.random.rand(100, 2)
+        self.assertEqual((100, 3, 2), utils.segment_intersection(a, b).shape)
+        a = np.array([[5, 15]])
+        gt_isegs = np.array([[[5, 10], [5, 15], [16, 15]]], dtype=float)
+        np.testing.assert_array_equal(gt_isegs,
+                                      utils.segment_intersection(a, b))
+        results = utils.segment_intersection(a, b, True)
+        self.assertEqual(2, len(results))
+        self.assertEqual((a.shape[0], b.shape[0]), results[1].shape)
+
+
+class test_video_utilities(unittest.TestCase):
+    def setUp(self):
+        self.video = 'data/videos/example.mp4'
+        self.video_dir = 'data/videos/example'
+
+    @unittest.skip("Skipping until correct installation of OpenCV")
+    def test_dump_video(self):
+        with tempfile.NamedTemporaryFile() as f:
+            filename = f.name
+        clip = utils.get_clip(self.video, 3, 30)
+        utils.dump_video(filename, clip)
+        self.assertTrue(os.path.isfile(filename))
+        self.assertTrue(utils.count_frames(filename) > 0)
+        os.remove(filename)
