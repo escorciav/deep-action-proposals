@@ -7,28 +7,6 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 
-def temp_annot_transf(X, mthd='c2b'):
-    """Transform temporal annotations
-
-    Parameters
-    ----------
-    X : ndarray
-        [n x 2] array with temporal annotations
-    mthd : str
-        Type of conversion:
-        'c2b': transform [central-frame, duration] onto [f-init, f-end]
-
-    Outputs
-    -------
-    Y : ndarray
-        [n x 2] array with transformed temporal annotations
-
-    """
-    if mthd == 'c2b':
-        Xinit = np.round(X[:, 0] - 0.5*X[:, 1])
-        return np.stack([Xinit, Xinit + X[:, 1]], axis=-1)
-
-
 def proposals_per_video(X, n_proposals=None, n_videos=None):
     """
     Reshape ndarray of dim 2 into ndarray of 3 dim where the first dimension

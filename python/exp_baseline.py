@@ -2,9 +2,10 @@ import numpy as np
 import pandas as pd
 
 from baseline import BaselineData, TempPriorsNoScale
-from baseline import temp_annot_transf, proposals_per_video
+from baseline import proposals_per_video
 
 from utils import dump_json
+from utils import segment_format
 
 NUM_PROPOSALS = [1, 10] + range(100, 1000, 100) + range(1000, 10001, 1000)
 
@@ -27,7 +28,7 @@ def eval_temporal_priors(train_file, test_file, n_prop=NUM_PROPOSALS,
         m.fit(Xtrain)
         Ypred_centered, idx = m.proposals(Ztest, return_index=True)
 
-        Ypred = temp_annot_transf(Ypred_centered)
+        Ypred = segment_format(Ypred_centered, 'c2b')
         # Form video-proposals format [f-init, f-end, score]
         vid_prop_all = np.hstack([Ypred, np.zeros((Ypred.shape[0], 1))])
         vid_prop = proposals_per_video(vid_prop_all, v)

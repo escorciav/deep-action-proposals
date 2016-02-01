@@ -410,6 +410,28 @@ def segment_intersection(target_segments, test_segments,
     return intersect
 
 
+def segment_format(X, mthd='c2b'):
+    """Transform temporal annotations
+
+    Parameters
+    ----------
+    X : ndarray
+        [n x 2] array with temporal annotations
+    mthd : str
+        Type of conversion:
+        'c2b': transform [central-frame, duration] onto [f-init, f-end]
+
+    Outputs
+    -------
+    Y : ndarray
+        [n x 2] array with transformed temporal annotations
+
+    """
+    if mthd == 'c2b':
+        Xinit = np.round(X[:, 0] - 0.5*X[:, 1])
+        return np.stack([Xinit, Xinit + X[:, 1]], axis=-1)
+
+
 # String utilities
 def levenshtein_distance(s1, s2):
     """Compute Levenshtein distance btw two strings
