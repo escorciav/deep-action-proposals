@@ -59,6 +59,12 @@ def test_video_duration():
     assert utils.video_duration('nonexistent.video') == 0.0
 
 
+class test_sampling_utilities(unittest.TestCase):
+    @unittest.skip("A contribution is required")
+    def test_sampling_with_uniform_groups(self):
+        pass
+
+
 class test_segment_utilities(unittest.TestCase):
     def test_segment_intersection(self):
         a = np.random.rand(1)

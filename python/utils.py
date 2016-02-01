@@ -315,6 +315,53 @@ def video_duration(filename):
         return 0.0
 
 
+# Sampling
+def sampling_with_uniform_groups(x, bin_edges, strict=True, rng=None):
+    """
+    Sample values of x such that the distribution on bin-edges is as uniform as
+    possible
+
+    Parameters
+    ----------
+    x : ndarray
+        1-dim array to sample
+    bin_edges : ndarray
+        1-dim array with intervals. See numpy.digitize for more details.
+    strict : bool, optional
+        If true, every bucket will have the same number of samples.
+    rng : numpy.random.RandomState, optional
+        pseudo-rnd number generator instance
+
+    Outputs
+    -------
+    keep_idx : ndarray
+        1-dim array of indexes from the elements of x to keep
+
+    """
+    if rng is None:
+        rng = np.random.RandomState()
+
+    n_bins = len(bin_edges) - 1
+    idx = np.digitize(x, bin_edges) - 1
+    counts = np.bincount(idx, minlength=n_bins)
+
+    min_samples = counts.min()
+    if strict:
+        samples_per_bin = np.repeat(min_samples, n_bins)
+        # Sample from the same distrib withot matter strict value
+        rng.rand(n_bins)
+    else:
+        samples_per_bin = np.minimum(min_samples+counts.std()*rng.rand(n_bins),
+                                     counts)
+
+    keep_idx_list = []
+    for i in xrange(n_bins):
+        tmp = (idx == i).nonzero()[0]
+        keep_idx_list.append(rng.permutation(tmp)[:samples_per_bin[i]])
+    keep_idx = np.hstack(keep_idx_list)
+    return keep_idx
+
+
 # Segment utilities
 def segment_intersection(target_segments, test_segments,
                          return_ratio_target=False):
