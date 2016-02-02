@@ -427,9 +427,18 @@ def segment_format(X, mthd='c2b'):
         [n x 2] array with transformed temporal annotations
 
     """
+    if X.ndim != 2:
+        msg = 'Incorrect number of dimensions. X.shape = {}'
+        ValueError(msg.format(X.shape))
+
     if mthd == 'c2b':
         Xinit = np.round(X[:, 0] - 0.5*X[:, 1])
-        return np.stack([Xinit, Xinit + X[:, 1]], axis=-1)
+        Xend = Xinit + X[:, 1]
+        return np.stack([Xinit, Xend], axis=-1)
+    elif mthd == 'b2c':
+        Xc = np.round(0.5*(X[:, 0] + X[:, 1]))
+        d = X[:, 1] - X[:, 0] + 1.0
+        return np.stack([Xc, d], axis=-1)
 
 
 # String utilities
