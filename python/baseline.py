@@ -81,6 +81,7 @@ class BaselineData(object):
 class TempPriorsNoScale(object):
     def __init__(self, n_prop=200):
         self.n_prop = n_prop
+        self.priors = None
         self.model = Pipeline([('scaling', StandardScaler()),
                                ('kmeans', KMeans(n_prop))])
 
@@ -107,6 +108,9 @@ class TempPriorsNoScale(object):
             m * n_prop x 2 array with temporal proposals
 
         """
+        if self.priors is None:
+            raise ValueError('model has not been trained')
+
         Y = np.kron(np.expand_dims(X, 1), self.priors)
         idx = np.repeat(np.arange(X.shape[0]), self.n_prop)
         if return_index:
