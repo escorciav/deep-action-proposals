@@ -96,8 +96,6 @@ def c3d_input_file_generator(filename, output_file, t_size=16, step_size=8,
                                        n_segments)
     return summary
 
-# General purpose functions
-
 
 # Video utilities
 def count_frames(filename, method=None, ext='*.jpg'):
@@ -363,6 +361,37 @@ def sampling_with_uniform_groups(x, bin_edges, strict=True, rng=None):
 
 
 # Segment utilities
+def segment_format(X, mthd='c2b'):
+    """Transform temporal annotations
+
+    Parameters
+    ----------
+    X : ndarray
+        [n x 2] array with temporal annotations
+    mthd : str
+        Type of conversion:
+        'c2b': transform [central-frame, duration] onto [f-init, f-end]
+
+    Outputs
+    -------
+    Y : ndarray
+        [n x 2] array with transformed temporal annotations
+
+    """
+    if X.ndim != 2:
+        msg = 'Incorrect number of dimensions. X.shape = {}'
+        ValueError(msg.format(X.shape))
+
+    if mthd == 'c2b':
+        Xinit = np.round(X[:, 0] - 0.5*X[:, 1])
+        Xend = Xinit + X[:, 1]
+        return np.stack([Xinit, Xend], axis=-1)
+    elif mthd == 'b2c':
+        Xc = np.round(0.5*(X[:, 0] + X[:, 1]))
+        d = X[:, 1] - X[:, 0] + 1.0
+        return np.stack([Xc, d], axis=-1)
+
+
 def segment_intersection(target_segments, test_segments,
                          return_ratio_target=False):
     """Compute intersection btw segments
@@ -410,35 +439,42 @@ def segment_intersection(target_segments, test_segments,
     return intersect
 
 
-def segment_format(X, mthd='c2b'):
-    """Transform temporal annotations
+def segment_iou(target_segments, test_segments):
+    """Compute intersection over union btw segments
 
     Parameters
     ----------
-    X : ndarray
-        [n x 2] array with temporal annotations
-    mthd : str
-        Type of conversion:
-        'c2b': transform [central-frame, duration] onto [f-init, f-end]
+    target_segments : ndarray
+        2-dim array in format [m x 2:=[init, end]]
+    test_segments : ndarray
+        2-dim array in format [n x 2:=[init, end]]
 
     Outputs
     -------
-    Y : ndarray
-        [n x 2] array with transformed temporal annotations
+    iou : ndarray
+        2-dim array [m x n] with IOU ratio.
+
+    Note: It assumes that target-segments are more scarce that test-segments
 
     """
-    if X.ndim != 2:
-        msg = 'Incorrect number of dimensions. X.shape = {}'
-        ValueError(msg.format(X.shape))
+    if target_segments.ndim != 2 or test_segments.ndim != 2:
+        raise ValueError('Dimension of arguments is incorrect')
 
-    if mthd == 'c2b':
-        Xinit = np.round(X[:, 0] - 0.5*X[:, 1])
-        Xend = Xinit + X[:, 1]
-        return np.stack([Xinit, Xend], axis=-1)
-    elif mthd == 'b2c':
-        Xc = np.round(0.5*(X[:, 0] + X[:, 1]))
-        d = X[:, 1] - X[:, 0] + 1.0
-        return np.stack([Xc, d], axis=-1)
+    m, n = target_segments.shape[0], test_segments.shape[0]
+    iou = np.empty((m, n))
+    for i in xrange(m):
+        tt1 = np.maximum(target_segments[i, 0], test_segments[:, 0])
+        tt2 = np.minimum(target_segments[i, 1], test_segments[:, 1])
+
+        # Non-negative overlap score
+        intersection = (tt2 - tt1 + 1.0).clip(0)
+        union = ((test_segments[:, 1] - test_segments[:, 0] + 1) +
+                 (target_segments[i, 1] - target_segments[i, 0] + 1) -
+                 intersection)
+        # Compute overlap as the ratio of the intersection
+        # over union of two segments at the frame level.
+        iou[i, :] = intersection / union
+    return iou
 
 
 # String utilities

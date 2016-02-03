@@ -80,6 +80,25 @@ class test_segment_utilities(unittest.TestCase):
         self.assertEqual(2, len(results))
         self.assertEqual((a.shape[0], b.shape[0]), results[1].shape)
 
+    def test_segment_iou(self):
+        a = np.array([[1, 10], [5, 20], [16, 25]])
+        b = np.random.rand(1)
+        self.assertRaises(ValueError, utils.segment_iou, a, b)
+        b = np.random.rand(100, 2)
+        self.assertEqual((3, 100), utils.segment_iou(a, b).shape)
+        b = np.array([[1, 10], [1, 30], [10, 20], [20, 30]])
+        rst = utils.segment_iou(a, b)
+        # segment is equal
+        self.assertEqual(1.0, rst[0, 0])
+        # segment is disjoined
+        self.assertEqual(0.0, rst[0, 3])
+        # segment is contained
+        self.assertEqual(10.0/30, rst[2, 1])
+        # segment to left
+        self.assertEqual(5.0/16, rst[2, 2])
+        # segment to right
+        self.assertEqual(6/15.0, rst[2, 3])
+
 
 class test_video_utilities(unittest.TestCase):
     def setUp(self):
