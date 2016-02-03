@@ -66,7 +66,7 @@ class test_sampling_utilities(unittest.TestCase):
 
 
 class test_segment_utilities(unittest.TestCase):
-    def test_segment_intersection(self):
+    def test_intersection(self):
         a = np.random.rand(1)
         b = np.array([[1, 10], [5, 20], [16, 25]])
         self.assertRaises(ValueError, utils.segment_intersection, a, b)
@@ -80,7 +80,7 @@ class test_segment_utilities(unittest.TestCase):
         self.assertEqual(2, len(results))
         self.assertEqual((a.shape[0], b.shape[0]), results[1].shape)
 
-    def test_segment_iou(self):
+    def test_iou(self):
         a = np.array([[1, 10], [5, 20], [16, 25]])
         b = np.random.rand(1)
         self.assertRaises(ValueError, utils.segment_iou, a, b)
@@ -98,6 +98,21 @@ class test_segment_utilities(unittest.TestCase):
         self.assertEqual(5.0/16, rst[2, 2])
         # segment to right
         self.assertEqual(6/15.0, rst[2, 3])
+
+    def test_unit_scaling(self):
+        a = np.random.rand(1)
+        self.assertRaises(ValueError, utils.segment_unit_scaling, a, 2)
+        size = (3, 2)
+        a = np.random.rand(*size)
+        rst = utils.segment_unit_scaling(a, 2)
+        self.assertEqual(size, rst.shape)
+        b = np.random.rand(size[1])
+        self.assertRaises(ValueError, utils.segment_unit_scaling, a, 2, b)
+        b = np.random.rand(size[0])
+        rst = utils.segment_unit_scaling(a, 2, b)
+        self.assertTrue(np.may_share_memory(a, rst))
+        rst = utils.segment_unit_scaling(a, 2, b, True)
+        self.assertFalse(np.may_share_memory(a, rst))
 
 
 class test_video_utilities(unittest.TestCase):

@@ -361,7 +361,7 @@ def sampling_with_uniform_groups(x, bin_edges, strict=True, rng=None):
 
 
 # Segment utilities
-def segment_format(X, mthd='c2b'):
+def segment_format(X, mthd='c2b', T=None, init=None):
     """Transform temporal annotations
 
     Parameters
@@ -370,7 +370,8 @@ def segment_format(X, mthd='c2b'):
         [n x 2] array with temporal annotations
     mthd : str
         Type of conversion:
-        'c2b': transform [central-frame, duration] onto [f-init, f-end]
+        'c2b': transform [center, duration] onto [f-init, f-end]
+        'b2c': inverse of c2b
 
     Outputs
     -------
@@ -383,8 +384,8 @@ def segment_format(X, mthd='c2b'):
         ValueError(msg.format(X.shape))
 
     if mthd == 'c2b':
-        Xinit = np.round(X[:, 0] - 0.5*X[:, 1])
-        Xend = Xinit + X[:, 1]
+        Xinit = np.ceil(X[:, 0] - 0.5*X[:, 1])
+        Xend = Xinit + X[:, 1] - 1.0
         return np.stack([Xinit, Xend], axis=-1)
     elif mthd == 'b2c':
         Xc = np.round(0.5*(X[:, 0] + X[:, 1]))
@@ -475,6 +476,40 @@ def segment_iou(target_segments, test_segments):
         # over union of two segments at the frame level.
         iou[i, :] = intersection / union
     return iou
+
+
+def segment_unit_scaling(X, T, init=None, copy=False):
+    """Scale segments onto a unit reference scale [0, 1]
+
+    Parameters
+    ----------
+    X : ndarray
+        [n x 2] array with temporal annotations in [center, duration] format
+    T : int, optional
+        duration
+    init : ndarray
+        [n] array with initial value of temporal reference
+
+    Outputs
+    -------
+    Y : ndarray
+        [n x 2] array with transformed temporal annotations
+
+    """
+    if X.ndim != 2:
+        raise ValueError('Incorrect number of dimension on X')
+    Y = X
+    if copy:
+        Y = X.copy()
+
+    if init is not None:
+        if init.size != Y.shape[0]:
+            raise ValueError('Incompatible reference, init')
+        Y[:, 0] -= init
+
+    Y[:, 0] /= T - 1
+    Y[:, 1] /= T
+    return Y
 
 
 # String utilities
