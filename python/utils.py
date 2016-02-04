@@ -116,7 +116,44 @@ def c3d_input_file_generator(filename, output_file, t_size=16, step_size=8,
     return summary
 
 
+# General utilities
+
+def idx_of_queries(df, col_name, queries, n_samples=None, rng_seed=None):
+    """Return indexes of several queries on a DataFrame
+
+    Parameters
+    ----------
+    df : DataFrame
+    col_name : int, str
+    queries : list, series, 1-dim ndarray
+    n_samples : int
+    rng_seed : rng instance or int
+
+    Outputs
+    -------
+    idx : ndarray
+        1-dim array of index over of queries
+
+    """
+    idx_lst = [None] * queries.size
+    # There should be a pandas way of doing this
+    for i, v in enumerate(queries):
+        idx_lst[i] = (df[col_name] == v).nonzero()[0]
+    idx = np.hstack(idx_lst)
+
+    if n_samples is None:
+        return idx
+    elif isinstance(n_samples, int):
+        if rng_seed is None or isinstance(rng_seed, int):
+            rng = np.random.RandomState(rng_seed)
+        else:
+            rng = rng_seed
+
+        return rng.permutation(idx)[:n_samples]
+
+
 # Video utilities
+
 def count_frames(filename, method=None, ext='*.jpg'):
     """Count number of frames of a video
 
