@@ -1,5 +1,6 @@
 import warnings
 
+import hickle as hkl
 import numpy as np
 import pandas as pd
 
@@ -18,69 +19,6 @@ def wrapper_unit_scaling(x, T, s_ref, n_gt, *args, **kwargs):
     xc = segment_format(x, 'b2c')
     init_ref = np.repeat(s_ref[:, 0], n_gt)
     return segment_unit_scaling(xc, T, init_ref)
-
-
-def generate_segments(t_size, l_size, annotations, cov_edges=RATIO_INTERVALS,
-                      i_thr=0.5, rng_seed=None, return_annot=True):
-    """Sample segments from a video
-
-    Parameters
-    ----------
-    t_size : int
-        Size of the temporal window.
-    l_size : int
-        Size of the video.
-    annotations : ndarray
-        2-dim array with annotations of video, format: [m x 2:=[init, end]].
-    cov_edges : ndarray or list
-        1-dim array with intervals for discretize coverage.
-    i_thr : float, optional
-        Threshold over intersection to consider that action appears inside a
-        segment.
-    rng_seed : int, optional
-    return_annot : bool, optional
-        Return two extra outputs (new_annotations and n_annotations).
-
-    Outputs
-    -------
-    segments : ndarray
-        2-dim array of selected segments for a video,
-        format: [n x 2:=[init, end]].
-    new_annotations : list
-        container for annotations inside the segment. length's list equal to n.
-    n_annotations : ndarray
-        1-dim array of size n with number of annotations inside ith-segment.
-
-    """
-    rng = np.random.RandomState()
-    if isinstance(rng_seed, int):
-        rng = np.random.RandomState(rng_seed)
-
-    f_init = np.arange(0, l_size - t_size)
-    segments = np.stack([f_init, f_init + t_size], axis=-1)
-    i_segments, i_ratio = segment_intersection(annotations, segments,
-                                               return_ratio_target=True)
-
-    # Coverage computation
-    # Note: summing i_ratio of segments may yield values greater that 1.
-    idx_mask = i_ratio >= i_thr
-    i_ratio[~idx_mask] = 0  # 0 coverage for incomplete actions and empty seg
-    cov_ratio_per_segment = i_ratio.sum(axis=0)
-
-    idx_samples = sampling_with_uniform_groups(
-        cov_ratio_per_segment, cov_edges, strict=False, rng=rng)
-    idx_samples = rng.permutation(idx_samples)
-
-    # Should valif i_segments have intersection >=0.5?
-    if return_annot:
-        new_annotations = [None] * len(idx_samples)
-        n_annotations = np.zeros(len(idx_samples), dtype=int)
-        for i, v in enumerate(idx_samples):
-            new_annotations[i] = i_segments[idx_mask[:, v], v, :]
-            n_annotations[i] = new_annotations[i].shape[0]
-        return segments[idx_samples, :], new_annotations, n_annotations
-
-    return segments[idx_samples, :]
 
 
 def compute_priors(df, T, K=200, iou_thr=0.5, norm_fcn=wrapper_unit_scaling):
@@ -174,3 +112,107 @@ def compute_priors(df, T, K=200, iou_thr=0.5, norm_fcn=wrapper_unit_scaling):
                                       'video-frames': np.repeat(L, n_seg)}),
                         pd.DataFrame(score, columns=col_triads)], axis=1)
     return priors, new_df
+
+
+def dump_files(filename, priors=None, df=None, conf=False):
+    """Dump files used to train the model and feature extraction
+
+    Parameters
+    ----------
+    filename : str
+        Fullpath of prefix name for helper-files
+    priors : ndarray, optional
+        2-dim array of location priors
+    df : DataFrame, optional
+        Table returned by compute_priors
+    conf : bool, optional
+        Save a file with confidence of each prior on every segment
+
+    Note: Files should be parse together to get insightful understanding of
+    the information because no further indexing is included in each file.
+
+    """
+    filefmt = filename + '_{}.{}'
+    # HDF5 with priors
+    if priors is not None:
+        hkl.dump(priors, filefmt.format('priors', 'hkl'), mode='w',
+                 compression='gzip', compression_opts=9)
+
+    # List of videos ready for C3D feature extractor wrapper
+    if df is not None:
+        df.rename(columns={'video-frames': 'num-frame',
+                           'f-init': 'i-frame'}, inplace=True)
+        lst = ['video-name', 'num-frame', 'i-frame', 'duration']
+        df[lst].to_csv(filefmt.format('ref', 'lst'), sep=' ', index=False)
+        # Rename columns again to avoid modify df without increase memory
+        df.rename(columns={'num-frame': 'video-frames',
+                           'i-frame': 'f-init'}, inplace=True)
+
+    # HDF5 with confidences
+    if conf and df is not None:
+        lst = ['c_{}'.format(i) for i in range(df.columns.size - 4)]
+        hkl.dump(np.array(df.loc[:, lst]), filefmt.format('conf', 'hkl'),
+                mode='w', compression='gzip', compression_opts=9)
+
+
+def generate_segments(t_size, l_size, annotations, cov_edges=RATIO_INTERVALS,
+                      i_thr=0.5, rng_seed=None, return_annot=True):
+    """Sample segments from a video
+
+    Parameters
+    ----------
+    t_size : int
+        Size of the temporal window.
+    l_size : int
+        Size of the video.
+    annotations : ndarray
+        2-dim array with annotations of video, format: [m x 2:=[init, end]].
+    cov_edges : ndarray or list
+        1-dim array with intervals for discretize coverage.
+    i_thr : float, optional
+        Threshold over intersection to consider that action appears inside a
+        segment.
+    rng_seed : int, optional
+    return_annot : bool, optional
+        Return two extra outputs (new_annotations and n_annotations).
+
+    Outputs
+    -------
+    segments : ndarray
+        2-dim array of selected segments for a video,
+        format: [n x 2:=[init, end]].
+    new_annotations : list
+        container for annotations inside the segment. length's list equal to n.
+    n_annotations : ndarray
+        1-dim array of size n with number of annotations inside ith-segment.
+
+    """
+    rng = np.random.RandomState()
+    if isinstance(rng_seed, int):
+        rng = np.random.RandomState(rng_seed)
+
+    f_init = np.arange(0, l_size - t_size)
+    segments = np.stack([f_init, f_init + t_size], axis=-1)
+    i_segments, i_ratio = segment_intersection(annotations, segments,
+                                               return_ratio_target=True)
+
+    # Coverage computation
+    # Note: summing i_ratio of segments may yield values greater that 1.
+    idx_mask = i_ratio >= i_thr
+    i_ratio[~idx_mask] = 0  # 0 coverage for incomplete actions and empty seg
+    cov_ratio_per_segment = i_ratio.sum(axis=0)
+
+    idx_samples = sampling_with_uniform_groups(
+        cov_ratio_per_segment, cov_edges, strict=False, rng=rng)
+    idx_samples = rng.permutation(idx_samples)
+
+    # Should valif i_segments have intersection >=0.5?
+    if return_annot:
+        new_annotations = [None] * len(idx_samples)
+        n_annotations = np.zeros(len(idx_samples), dtype=int)
+        for i, v in enumerate(idx_samples):
+            new_annotations[i] = i_segments[idx_mask[:, v], v, :]
+            n_annotations[i] = new_annotations[i].shape[0]
+        return segments[idx_samples, :], new_annotations, n_annotations
+
+    return segments[idx_samples, :]
