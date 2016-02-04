@@ -17,8 +17,9 @@ def c3d_input_file_generator(filename, output_file, t_size=16, step_size=8,
     Parameters
     ----------
     filename : string
-        fullpath of CSV file (space separated of 5 columns without header) with
-        data about the videos to process.
+        fullpath of CSV file (space separated of 4-5 columns with header) with
+        data about the videos to process. Expected columns are:
+        ['video-name', 'num-frame', 'i-frame', 'duration', 'label']
     output_file : string or list
         list of output files to generate
     t_size : int, optional
@@ -38,15 +39,25 @@ def c3d_input_file_generator(filename, output_file, t_size=16, step_size=8,
 
     """
     summary = dict(success=False, output=None)
-    col_names = ['video-name', 'num-frame', 'i-frame', 'duration', 'label']
+    req_cols = set(['video-name', 'num-frame', 'i-frame', 'duration'])
     try:
-        df = pd.read_csv(filename, sep=' ', header=None, names=col_names)
+        df = pd.read_csv(filename, sep=' ')
     except:
-        return summary
+        raise ValueError('Unable to open file {}'.format(filename))
+
+    cols = df.columns.tolist()
+    n_segments = df.shape[0]
+    if not req_cols.issubset(cols):
+        msg = 'Not enough information or incorrect format in {}'
+        raise ValueError(msg.format(filename))
+
+    if 'label' not in cols:
+        dummy = np.zeros(n_segments, int)
+        df = pd.concat([df, pd.DataFrame({'label': dummy})], axis=1)
+
     if isinstance(output_file, str):
         output_file = [output_file]
 
-    n_segments = df.shape[0]
     idx_bool_keep = df['duration'] >= t_size
     # Compute number of clips and from where to extract clips from each
     # activity-segment
@@ -63,30 +74,38 @@ def c3d_input_file_generator(filename, output_file, t_size=16, step_size=8,
     df_c3d = pd.DataFrame({1: df.loc[idx_keep_expanded, 'video-name'],
                            2: init_end_frame,
                            3: df.loc[idx_keep_expanded, 'label']})
+    df_c3d.drop_duplicates(keep='first', inplace=True)
+
+    # Dump DataFrame for C3D-input
     try:
         df_c3d.to_csv(output_file[0], sep=' ', header=False, index=False)
     except:
-        return summary
+        msg = 'Unable to create input list for C3D ({}). Check permissions.'
+        raise ValueError(msg.format(output_file[0]))
 
-    # Dump outpu file
+    # C3D-output
     if len(output_file) > 1 and isinstance(output_folder, str):
+        sr_out = (output_folder + os.path.sep +
+                  df.loc[idx_keep_expanded, 'video-name'].astype(str) +
+                  os.path.sep + init_end_frame.astype(str))
+        # Avoid redundacy such that A//B introduce by previous cmd. A
+        # principled solution is welcome.
+        sr_out = sr_out.apply(os.path.normpath)
+        sr_out.drop_duplicates(keep='first', inplace=True)
         skip_mkdir = False
+
+        # Dump DataFrame for C3D-output
         try:
-            sr_out = (output_folder + os.path.sep +
-                      df.loc[idx_keep_expanded, 'video-name'].astype(str) +
-                      os.path.sep + init_end_frame.astype(str))
-            # Avoid redundacy such that A//B introduce by previous cmd. A
-            # principled solution is welcome.
-            sr_out = sr_out.apply(os.path.normpath)
             sr_out.to_csv(output_file[1], header=None, index=False)
         except:
             skip_mkdir = True
 
+        # Create dirs to place C3D-features
         if not skip_mkdir:
             summary['output'] = output_file[1]
             if mkdir:
-                for i in sr_out:
-                    os.makedirs(i)
+                for i in df['video-name'].unique():
+                    os.makedirs(os.path.join(output_folder, i))
 
     # Update summary
     summary['success'] = True
