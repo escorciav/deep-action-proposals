@@ -7,12 +7,12 @@ import pandas as pd
 from utils import dump_frames
 
 
-def dump_wrapper(filename, output_folder, fullpath):
+def dump_wrapper(filename, output_folder, baseformat, fullpath):
     filename_noext = os.path.splitext(filename)[0]
     if fullpath:
         filename_noext = os.path.basename(filename_noext)
     output_dir = os.path.join(output_folder, filename_noext)
-    return dump_frames(filename, output_dir)
+    return dump_frames(filename, output_dir, baseformat)
 
 
 def input_parse():
@@ -22,6 +22,8 @@ def input_parse():
     p.add_argument('input_file',
                    help='CSV file with list of videos to process')
     p.add_argument('output_folder', help='Folder to allocate frames')
+    p.add_argument('-bf', '--baseformat', default=None,
+                   help='Format used for naming frames e.g. %%06d.jpg')
     p.add_argument('-n', '--n_jobs', default=1, type=int,
                    help='Number of CPUs')
     p.add_argument('-ff', '--fullpath', action='store_true',
@@ -30,9 +32,10 @@ def input_parse():
     return args
 
 
-def main(input_file, output_folder, n_jobs, fullpath):
+def main(input_file, output_folder, baseformat, n_jobs, fullpath):
     df = pd.read_csv(input_file, sep=' ', header=None)
-    Parallel(n_jobs=n_jobs)(delayed(dump_wrapper)(i, output_folder, fullpath)
+    Parallel(n_jobs=n_jobs)(delayed(dump_wrapper)(i, output_folder,
+                                                  baseformat, fullpath)
                             for i in df.loc[:, 0])
     return None
 
