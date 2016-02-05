@@ -199,7 +199,7 @@ def count_frames(filename, method=None, ext='*.jpg'):
     return counter
 
 
-def dump_frames(filename, output_folder):
+def dump_frames(filename, output_folder, basename_format=None):
     """Dump frames of a video-file into a folder
 
     Parameters
@@ -208,6 +208,9 @@ def dump_frames(filename, output_folder):
         Fullpath of video-file
     output_folder : string
         Fullpath of folder to place frames
+    basename_format: (None, string)
+        String format used to save video frames. If None, the 
+        format is assigned according the length of the video
 
     Outputs
     -------
@@ -218,13 +221,16 @@ def dump_frames(filename, output_folder):
     """
     if not os.path.isdir(output_folder):
         os.makedirs(output_folder)
-    n_frames, n = count_frames(filename, 'ffprobe'), 0
-    while n_frames > 0:
-        n_frames /= 10
-        n += 1
+    if basename_format:
+        fbasename = basename_format + '.jpg'
+    else:
+        n_frames, n = count_frames(filename, 'ffprobe'), 0
+        while n_frames > 0:
+            n_frames /= 10
+            n += 1
+        fbasename = '%0' + str(max(6, n)) + 'd.jpg'
 
-    output_format = os.path.join(output_folder,
-                                 '%0' + str(max(6, n)) + 'd.jpg')
+    output_format = os.path.join(output_folder, fbasename)
     cmd = ['ffmpeg', '-v', 'error', '-i', filename, '-qscale:v', '2', '-f',
            'image2', output_format]
     try:
