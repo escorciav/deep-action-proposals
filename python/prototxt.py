@@ -15,7 +15,7 @@ layers {{
   top: "label"
   image_data_param {{
     source: "{seq_source}"
-    use_image: false
+    use_image: {use_image}
     mean_file: "{mean_file}"
     batch_size: {batch_size}
     crop_size: 112
