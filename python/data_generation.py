@@ -114,6 +114,98 @@ def compute_priors(df, T, K=200, iou_thr=0.5, norm_fcn=wrapper_unit_scaling):
                         pd.DataFrame(score, columns=col_triads)], axis=1)
     return priors, new_df
 
+def compute_priors_over_time(mapped_priors_b, T, l_size, stride=16):
+    """Compile priors over time from a given video length.
+    Parameters
+    ----------
+    mapped_priors_b: ndarray
+        2-dim array of priors discovered in 'c2b' format [f-init, f-end].
+    T: int
+        Canonical temporal size of evaluation window.
+    l_size : int
+        Size of the video.
+    stride: int
+        Size of the sliding step.
+
+    Outputs
+    -------
+    priors_t: ndarray
+         2-dim array of selected segments for a video,
+         format: [n x 2:=[init, end]].
+    """
+    # Build segment stack.
+    nr_priors = mapped_priors_b.shape[0]
+    f_init = np.arange(1, l_size - T, stride + 1).repeat(nr_priors)
+    priors_t = np.stack([f_init, f_init + np.zeros(f_init.shape[0])], axis=-1)
+
+    # Assign a segment to each prior.
+    for i, mp_i in enumerate(mapped_priors_b):
+        idx = np.arange(i, priors_t.shape[0], nr_priors)
+        priors_t[idx, :] += mp_i
+    return priors_t
+
+def evaluate_priors(df, priors, T, stride=16, iou_thr=0.5,
+                    return_recall=False):
+    """    
+    Parameters
+    ----------
+    df: DataFrame
+        Pandas table with annotations of the dataset. It must include the
+        following columns data_generation.REQ_INFO_CP
+    priors: ndarray
+        2-dim array of priors discovered. The first dimension iterates over the
+        different priors.
+    T: int
+        Canonical temporal size of evaluation window.
+    stride: int, optional
+        Size of the sliding step.
+    iou_thr : float, optional
+        IOU threshold to consider that an annotation match with a prior.
+    return_recall: bool, optional
+        Return one extra output (recall, computed at given iou_thr).
+
+    Outputs
+    -------
+    eval_df: DataFrame
+        Table with information about each annotation and its matched prior.
+    recall: float
+        Recall at given iou threshold.
+    """
+    # Sanitize input.
+    mapped_priors_b = segment_format(priors * T, 'c2b').clip(1, T)
+    mapped_priors_b = np.array(mapped_priors_b).astype(np.int)
+
+    # Iterate over each instance.
+    best_iou, v_pointer = np.empty(df['video-name'].size), 0
+    best_priors_t = np.empty((df['video-name'].size, 2))
+    for i, sgm_i in df.iterrows():
+        # Parsing ground-truth.
+        L = sgm_i['video-frames']
+        gtruth_c = np.empty((1, 2))
+        gtruth_c[0, :] = np.stack([sgm_i['f-init'], sgm_i['n-frames']],
+                                  axis=-1)
+        gtruth_b = segment_format(gtruth_c, 'd2b')
+
+        # Slide priors over time.
+        priors_t = compute_priors_over_time(mapped_priors_b, T, L, stride)
+
+        # Compute iou and keep the best one for each ground-truth instance.
+        iou = segment_iou(gtruth_b, priors_t)
+        best_iou[v_pointer] = iou.max(axis=1)
+        best_priors_t[v_pointer, :] = priors_t[iou.argmax(axis=1), :]
+        v_pointer += 1
+
+    # Build DataFrame.
+    s_init = best_priors_t[:, 0]
+    n_frames = best_priors_t[:, 1] - best_priors_t[:, 0] + 1
+    eval_df = pd.concat([df, pd.DataFrame({'priors-f-init': s_init,
+                                           'priors-n-frames': n_frames,
+                                           'iou': best_iou})], axis=1)
+    if return_recall:
+        n_annotations = eval_df.shape[0]
+        recall = (eval_df['iou'] >= iou_thr).sum().astype(float)/n_annotations
+        return eval_df, recall
+    return eval_df
 
 def dump_files(filename, priors=None, df=None, conf=False):
     """Dump files used to train the model and feature extraction

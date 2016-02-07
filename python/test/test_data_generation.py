@@ -30,3 +30,13 @@ class TestUtils(unittest.TestCase):
         #self.assertEqual(rst[0].shape[0], len(rst[1]))
         #self.assertEqual(rst[0].shape[0], rst[2].size)
         pass
+
+    @unittest.skip("A contribution is required")
+    def test_evaluate_priors(self):
+        # TODO: Write testing cases for function evaluate_priors.
+        pass
+
+    @unittest.skip("A contribution is required")
+    def test_compute_priors_over_time(self):
+        # TODO: Write testing cases for the function compute_priors_over_time.
+        pass
