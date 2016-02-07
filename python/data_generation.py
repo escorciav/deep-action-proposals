@@ -114,6 +114,7 @@ def compute_priors(df, T, K=200, iou_thr=0.5, norm_fcn=wrapper_unit_scaling):
                         pd.DataFrame(score, columns=col_triads)], axis=1)
     return priors, new_df
 
+
 def compute_priors_over_time(mapped_priors_b, T, l_size, stride=16):
     """Compile priors over time from a given video length.
     Parameters
@@ -144,9 +145,10 @@ def compute_priors_over_time(mapped_priors_b, T, l_size, stride=16):
         priors_t[idx, :] += mp_i
     return priors_t
 
+
 def evaluate_priors(df, priors, T, stride=16, iou_thr=0.5,
                     return_recall=False):
-    """    
+    """
     Parameters
     ----------
     df: DataFrame
@@ -207,6 +209,7 @@ def evaluate_priors(df, priors, T, stride=16, iou_thr=0.5,
         return eval_df, recall
     return eval_df
 
+
 def dump_files(filename, priors=None, df=None, conf=False):
     """Dump files used to train the model and feature extraction
 
@@ -245,7 +248,7 @@ def dump_files(filename, priors=None, df=None, conf=False):
     if conf and df is not None:
         lst = ['c_{}'.format(i) for i in range(df.columns.size - 4)]
         hkl.dump(np.array(df.loc[:, lst]), filefmt.format('conf', 'hkl'),
-                mode='w', compression='gzip', compression_opts=9)
+                 mode='w', compression='gzip', compression_opts=9)
 
 
 def generate_segments(t_size, l_size, annotations, cov_edges=RATIO_INTERVALS,
