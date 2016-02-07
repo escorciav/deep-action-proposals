@@ -1,3 +1,4 @@
+import os
 import warnings
 
 import hickle as hkl
@@ -234,12 +235,22 @@ def load_files(priors_file=None, ref_file=None, conf_file=None):
     conf : ndarray
 
     """
+    def check_file_existence(filename, suffix):
+        if not os.path.exists(filename):
+            if os.path.exists(filename + suffix):
+                filename += suffix
+            else:
+                raise IOError('Unknown file ' + filename)
+        return filename
+
     if isinstance(priors_file, str):
+        priors_file = check_file_existence(priors_file, '_priors.hkl')
         priors = hkl.load(priors_file)
     else:
         priors = None
 
     if isinstance(ref_file, str):
+        ref_file = check_file_existence(ref_file, '_ref.lst')
         df = pd.read_csv(ref_file, sep=' ')
         # Rename columns
         df.rename(columns={'num-frame': 'video-frames',
@@ -248,6 +259,7 @@ def load_files(priors_file=None, ref_file=None, conf_file=None):
         df = None
 
     if isinstance(conf_file, str):
+        conf_file = check_file_existence(conf_file, '_conf.hkl')
         conf = hkl.load(conf_file)
         if isinstance(df, pd.DataFrame):
             df_conf = pd.DataFrame(conf)
