@@ -216,3 +216,44 @@ def generate_segments(t_size, l_size, annotations, cov_edges=RATIO_INTERVALS,
         return segments[idx_samples, :], new_annotations, n_annotations
 
     return segments[idx_samples, :]
+
+
+def load_files(priors_file=None, ref_file=None, conf_file=None):
+    """Load files output by dump_files
+
+    Parameters
+    ----------
+    priors_file : str
+    ref_file : str
+    conf_file : str
+
+    Outputs
+    -------
+    priors: ndarray
+    df : DataFrame
+    conf : ndarray
+
+    """
+    if isinstance(priors_file, str):
+        priors = hkl.load(priors_file)
+    else:
+        priors = None
+
+    if isinstance(ref_file, str):
+        df = pd.read_csv(ref_file, sep=' ')
+        # Rename columns
+        df.rename(columns={'num-frame': 'video-frames',
+                           'i-frame': 'f-init'}, inplace=True)
+    else:
+        df = None
+
+    if isinstance(conf_file, str):
+        conf = hkl.load(conf_file)
+        if isinstance(df, pd.DataFrame):
+            df_conf = pd.DataFrame(conf)
+            df_conf.columns = ['c_{}'.format(i)
+                               for i in range(0, conf.shape[1])]
+            df = pd.concat([df, df_conf], axis=1)
+    else:
+        conf = None
+    return priors, df, conf
