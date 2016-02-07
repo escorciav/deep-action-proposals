@@ -41,6 +41,20 @@ class test_c3d_utilities(unittest.TestCase):
         os.remove(filename + '.out')
         shutil.rmtree(filename + '_dir')
 
+    @unittest.skip("A contribution is required")
+    def c3d_read_feature(self):
+        pass
+
+    @unittest.skip("A contribution is required")
+    def test_c3d_stack_feature(self):
+        pass
+
+
+class test_general_utilities(unittest.TestCase):
+    @unittest.skip("A contribution is required")
+    def test_idx_of_queries(self):
+        pass
+
 
 def test_count_frames():
     filename = 'not_existent_video.avi'
