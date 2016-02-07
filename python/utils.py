@@ -214,6 +214,71 @@ def c3d_stack_feature(dirname, files=None, layer='.fc7-1', savefile=None,
     return arr
 
 
+def c3d_batch_feature_stacking(df, dirname, t_size=16, t_stride=8,
+                               savedir=None, stack_prm=None, as_array=True):
+    """Stack C3D feature for a bunch of segments
+
+    Parameters
+    ----------
+    df : DataFrame.
+        Table data with (at  least) the following column names:
+        ['video-name', 'f-init', 'duration'].
+    dirname : str.
+        Fullpath of root folder with features.
+    t_size : int, optional.
+        Size of temporal receptive field C3D-model.
+    t_stride : int, optional.
+        Size of temporal stride btw features.
+    savedir : str, optional.
+        Fullpath of directory to save results, if required.
+    stack_prm : dict.
+        Parameters for c3d_stack_feature function.
+    as_array : bool, optional
+        return ndarray instead of list.
+
+    Outputs
+    -------
+    arr : List or ndarray.
+        3-dim array of shape [df.shape[0], m, d] where d := dimensionality of
+        the feature space and m is df.loc[i, 'duration']
+    success : bool, optional
+        Inform if as_array was done succesfully.
+
+    """
+    if stack_prm is None:
+        stack_prm = {}
+
+    def wrapper_c3d_stacking(
+        video_name, f_init, duration, dirname=dirname, T=t_size, s=t_stride,
+        savedir=savedir, stack_prm=stack_prm):
+        # Extra 1 comes from zero-indexing
+        frames_of_interest = range(f_init, f_init + duration - T + 1, s)
+        dirname_video = os.path.join(dirname, video_name)
+        args = (dirname_video, frames_of_interest)
+
+        if isinstance(savedir, str):
+            outfile = os.path.join(savedir, video_name + '_' + str(f_init))
+            tmp = c3d_stack_feature(*args, savefile=outfile, **stack_prm)
+        else:
+            tmp = c3d_stack_feature(*args, **stack_prm)
+
+        return tmp
+
+    n = df.shape[0]
+    arr = [None] * n
+    for i in xrange(n):
+        arr[i] = wrapper_c3d_stacking(*df.loc[i, ['video-name','f-init',
+                                                  'duration']])
+
+    if as_array:
+        try:
+            stacked_arr = np.stack(arr)
+        except:
+            return arr, False
+        return stacked_arr, True
+    return arr
+
+
 # General utilities
 
 def idx_of_queries(df, col_name, queries, n_samples=None, rng_seed=None):
