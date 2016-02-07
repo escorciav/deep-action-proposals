@@ -67,7 +67,7 @@ def compute_priors(df, T, K=200, iou_thr=0.5, norm_fcn=wrapper_unit_scaling):
         idx = df['video-name'] == v
         L[i] = df.loc[idx, 'video-frames'].mean()
         gtruth_c = df.loc[idx, ['f-init', 'n-frames']]
-        gtruth_b = segment_format(np.array(gtruth_c), 'c2b')
+        gtruth_b = segment_format(np.array(gtruth_c), 'd2b')
         segment_lst[i], gt_list_i, n_gt_lst[i] = generate_segments(
             T, L[i], gtruth_b)
         n_seg[i] = segment_lst[i].shape[0]
