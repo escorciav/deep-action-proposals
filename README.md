@@ -48,9 +48,7 @@ Extra info: [git merge](https://git-scm.com/docs/git-merge), [git rebase](https:
 5. Use our python program `python/tools/c3d_feat_frm.py` to extract c3d features. For example:
 
 ```
-
 python/tools/c3d_feat_frm.py data/models/conv3d_deepnetA_sport1m_iter_1900000.caffemodel output.c3d fc7-1 -c '{"seq_source": "input.c3d", "mean_file": "data/models/sport1m_train16_128_mean.binaryproto", "batch_size": 50, "use_image": "true"}' -v
-
 ```
 
 ## Useful bash commands
