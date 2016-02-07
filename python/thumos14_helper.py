@@ -138,7 +138,7 @@ class Thumos14(object):
         video_frames = df_v.loc[idx_map_vid2seg, 'n-frames']
 
         # Compute initial-frame, ending-frame, num-frames
-        f_i = np.round(frame_rate * np.array(df_s.loc[:, 2]))
+        f_i = np.round(frame_rate * np.array(df_s.loc[:, 2])).clip(1)
         f_e = np.round(frame_rate * np.array(df_s.loc[:, 3]))
         n_frames = f_e - f_i + 1
 
