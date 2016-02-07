@@ -19,23 +19,23 @@ class test_c3d_utilities(unittest.TestCase):
             f.write('video-name num-frame i-frame duration label\n'
                     'my_video 50 0 22 0\nmy_video 50 10 33 1\n'
                     'myvideo2 30 0 15 2\n')
-            filename = f.name
-            file_in_out = [filename + '.in', filename + '.out']
-            dir_out = filename + '_dir'
-            summary = utils.c3d_input_file_generator(filename, file_in_out,
-                                                     output_folder=dir_out)
-            self.assertTrue(summary['success'])
-            self.assertEqual(1.0/3, summary['pctg-skipped-segments'])
-            self.assertEqual(4.0/3, summary['ratio-clips-segments'])
-            # dummy test to double check that output has the right number of
-            # clips
-            self.assertTrue(os.path.isfile(filename + '.in'))
-            rst = check_output(['wc', '-l', filename + '.in']).split(' ')[0]
-            self.assertEqual('4', rst)
-            self.assertTrue(os.path.isfile(filename + '.out'))
-            rst = check_output(['wc', '-l', filename + '.out']).split(' ')[0]
-            self.assertEqual('4', rst)
-            self.assertTrue(os.path.isdir(filename + '_dir'))
+        filename = f.name
+        file_in_out = [filename + '.in', filename + '.out']
+        dir_out = filename + '_dir'
+        summary = utils.c3d_input_file_generator(filename, file_in_out,
+                                                    output_folder=dir_out)
+        self.assertTrue(summary['success'])
+        self.assertEqual(1.0/3, summary['pctg-skipped-segments'])
+        self.assertEqual(4.0/3, summary['ratio-clips-segments'])
+        # dummy test to double check that output has the right number of
+        # clips
+        self.assertTrue(os.path.isfile(filename + '.in'))
+        rst = check_output(['wc', '-l', filename + '.in']).split(' ')[0]
+        self.assertEqual('4', rst)
+        self.assertTrue(os.path.isfile(filename + '.out'))
+        rst = check_output(['wc', '-l', filename + '.out']).split(' ')[0]
+        self.assertEqual('4', rst)
+        self.assertTrue(os.path.isdir(filename + '_dir'))
         os.remove(filename)
         os.remove(filename + '.in')
         os.remove(filename + '.out')
@@ -134,7 +134,7 @@ class test_segment_utilities(unittest.TestCase):
     def test_segment_format(self):
         a = np.array([[10, 3]])
         res = np.array([[10, 12]])
-        np.testing.assert_array_equal(segment_format(a, 'd2b'), res)
+        np.testing.assert_array_equal(utils.segment_format(a, 'd2b'), res)
 
 
 class test_video_utilities(unittest.TestCase):
