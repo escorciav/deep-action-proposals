@@ -131,6 +131,11 @@ class test_segment_utilities(unittest.TestCase):
         rst = utils.segment_unit_scaling(a, 2, b, True)
         self.assertFalse(np.may_share_memory(a, rst))
 
+    def test_segment_format(self):
+        a = np.array([[10, 3]])
+        res = np.array([[10, 12]])
+        np.testing.assert_array_equal(segment_format(a, 'd2b'), res)
+
 
 class test_video_utilities(unittest.TestCase):
     def setUp(self):

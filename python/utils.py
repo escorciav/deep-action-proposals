@@ -597,6 +597,7 @@ def segment_format(X, mthd='c2b', T=None, init=None):
         Type of conversion:
         'c2b': transform [center, duration] onto [f-init, f-end]
         'b2c': inverse of c2b
+        'd2b': transform ['f-init', 'n-frames'] into ['f-init', 'f-end']
 
     Outputs
     -------
@@ -616,7 +617,10 @@ def segment_format(X, mthd='c2b', T=None, init=None):
         Xc = np.round(0.5*(X[:, 0] + X[:, 1]))
         d = X[:, 1] - X[:, 0] + 1.0
         return np.stack([Xc, d], axis=-1)
-
+    elif mthd == 'd2b':
+        Xinit = X[:, 0]
+        Xend = X[:, 0] + X[:, 1] - 1.0
+        return np.stack([Xinit, Xend], axis=-1)
 
 def segment_intersection(target_segments, test_segments,
                          return_ratio_target=False):
