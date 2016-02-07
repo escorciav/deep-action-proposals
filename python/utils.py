@@ -1,3 +1,4 @@
+import array
 import glob
 import json
 import os
@@ -116,6 +117,33 @@ def c3d_input_file_generator(filename, output_file, t_size=16, step_size=8,
     return summary
 
 
+def c3d_read_feature(filename):
+    """Read feature dump by C3D
+
+    Parameters
+    ----------
+    filename : str
+        Fullpath of file to read
+
+    Outputs
+    -------
+    x : ndarray
+        numpy array of features
+
+    Note: It accomplishes the same purpose of this code:
+        C3D/examples/c3d_feature_extraction/script/read_binary_blob.m
+
+    """
+    s_parr, d_parr = array.array('i'), array.array('f')
+    with open(filename, 'r') as f:
+        s_parr.fromfile(f, 5)
+        s = np.array(s_parr)
+        m = np.cumprod(s)[-1]
+
+        d_parr.fromfile(f, m)
+    return s, np.array(d_parr)
+
+
 # General utilities
 
 def idx_of_queries(df, col_name, queries, n_samples=None, rng_seed=None):
@@ -209,7 +237,7 @@ def dump_frames(filename, output_folder, basename_format=None):
     output_folder : string
         Fullpath of folder to place frames
     basename_format: (None, string)
-        String format used to save video frames. If None, the 
+        String format used to save video frames. If None, the
         format is assigned according the length of the video
 
     Outputs
