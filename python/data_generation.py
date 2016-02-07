@@ -287,8 +287,8 @@ def generate_segments(t_size, l_size, annotations, cov_edges=RATIO_INTERVALS,
     if isinstance(rng_seed, int):
         rng = np.random.RandomState(rng_seed)
 
-    f_init = np.arange(0, l_size - t_size)
-    segments = np.stack([f_init, f_init + t_size], axis=-1)
+    f_init = np.arange(1, l_size - t_size)
+    segments = np.stack([f_init, f_init + t_size - 1], axis=-1)
     i_segments, i_ratio = segment_intersection(annotations, segments,
                                                return_ratio_target=True)
 
