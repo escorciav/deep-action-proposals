@@ -133,17 +133,21 @@ def compute_priors_over_time(mapped_priors_b, T, l_size, stride=16):
     priors_t: ndarray
          2-dim array of selected segments for a video,
          format: [n x 2:=[init, end]].
+    k_idx: ndarray
+         1-dim array of prior indices.
     """
     # Build segment stack.
     nr_priors = mapped_priors_b.shape[0]
     f_init = np.arange(1, l_size - T, stride + 1).repeat(nr_priors)
     priors_t = np.stack([f_init, f_init + np.zeros(f_init.shape[0])], axis=-1)
+    k_idx = np.empty(f_init.shape[0])
 
     # Assign a segment to each prior.
     for i, mp_i in enumerate(mapped_priors_b):
         idx = np.arange(i, priors_t.shape[0], nr_priors)
         priors_t[idx, :] += mp_i
-    return priors_t
+        k_idx[idx] = 1
+    return priors_t, k_idx
 
 
 def evaluate_priors(df, priors, T, stride=16, iou_thr=0.5,
@@ -180,6 +184,7 @@ def evaluate_priors(df, priors, T, stride=16, iou_thr=0.5,
     # Iterate over each instance.
     best_iou, v_pointer = np.empty(df['video-name'].size), 0
     best_priors_t = np.empty((df['video-name'].size, 2))
+    best_priors_index = np.empty(df['video-name'].size)
     for i, sgm_i in df.iterrows():
         # Parsing ground-truth.
         L = sgm_i['video-frames']
@@ -189,12 +194,22 @@ def evaluate_priors(df, priors, T, stride=16, iou_thr=0.5,
         gtruth_b = segment_format(gtruth_c, 'd2b')
 
         # Slide priors over time.
-        priors_t = compute_priors_over_time(mapped_priors_b, T, L, stride)
+        priors_t, k_idx = compute_priors_over_time(mapped_priors_b, T, L, stride)
+
+        # Not found priors for this video.
+        if priors_t.shape[0] == 0:
+            best_iou[v_pointer] = 0.0
+            best_priors_t[v_pointer, :] = np.array([[np.nan, np.nan]])
+            best_priors_index[v_pointer] = np.array([np.nan])
+            v_pointer += 1
+            continue
 
         # Compute iou and keep the best one for each ground-truth instance.
         iou = segment_iou(gtruth_b, priors_t)
-        best_iou[v_pointer] = iou.max(axis=1)
-        best_priors_t[v_pointer, :] = priors_t[iou.argmax(axis=1), :]
+        max_idx = iou.argmax(axis=1)
+        best_iou[v_pointer] = iou.flatten()[max_idx]
+        best_priors_t[v_pointer, :] = priors_t[max_idx, :]
+        best_priors_index[v_pointer] = k_idx[max_idx]
         v_pointer += 1
 
     # Build DataFrame.
@@ -202,6 +217,7 @@ def evaluate_priors(df, priors, T, stride=16, iou_thr=0.5,
     n_frames = best_priors_t[:, 1] - best_priors_t[:, 0] + 1
     eval_df = pd.concat([df, pd.DataFrame({'priors-f-init': s_init,
                                            'priors-n-frames': n_frames,
+                                           'k-idx': best_priors_index,
                                            'iou': best_iou})], axis=1)
     if return_recall:
         n_annotations = eval_df.shape[0]
