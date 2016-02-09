@@ -146,7 +146,7 @@ def compute_priors_over_time(mapped_priors_b, T, l_size, stride=16):
     for i, mp_i in enumerate(mapped_priors_b):
         idx = np.arange(i, priors_t.shape[0], nr_priors)
         priors_t[idx, :] += mp_i
-        k_idx[idx] = 1
+        k_idx[idx] = i
     return priors_t, k_idx
 
 
