@@ -248,9 +248,9 @@ def c3d_batch_feature_stacking(df, dirname, t_size=16, t_stride=8,
     if stack_prm is None:
         stack_prm = {}
 
-    def wrapper_c3d_stacking(
-        video_name, f_init, duration, dirname=dirname, T=t_size, s=t_stride,
-        savedir=savedir, stack_prm=stack_prm):
+    def wrapper_c3d_stacking(video_name, f_init, duration, dirname=dirname,
+                             T=t_size, s=t_stride, savedir=savedir,
+                             stack_prm=stack_prm):
         # Extra 1 comes from zero-indexing
         frames_of_interest = range(f_init, f_init + duration - T + 1, s)
         dirname_video = os.path.join(dirname, video_name)
@@ -279,7 +279,6 @@ def c3d_batch_feature_stacking(df, dirname, t_size=16, t_stride=8,
 
 
 # General utilities
-
 def idx_of_queries(df, col_name, queries, n_samples=None, rng_seed=None):
     """Return indexes of several queries on a DataFrame
 
@@ -620,6 +619,7 @@ def segment_format(X, mthd='c2b', T=None, init=None):
         Xinit = X[:, 0]
         Xend = X[:, 0] + X[:, 1] - 1.0
         return np.stack([Xinit, Xend], axis=-1)
+
 
 def segment_intersection(target_segments, test_segments,
                          return_ratio_target=False):
