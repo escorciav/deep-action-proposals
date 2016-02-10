@@ -264,10 +264,9 @@ def c3d_batch_feature_stacking(df, dirname, t_size=16, t_stride=8,
 
         return tmp
 
-    n = df.shape[0]
-    arr = [None] * n
-    for i in xrange(n):
-        arr[i] = wrapper_c3d_stacking(*df.loc[i, ['video-name','f-init',
+    arr = [None] * df.shape[0]
+    for i, v in enumerate(df.index):
+        arr[i] = wrapper_c3d_stacking(*df.loc[v, ['video-name', 'f-init',
                                                   'duration']])
 
     if as_array:
