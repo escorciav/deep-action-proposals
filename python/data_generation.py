@@ -268,7 +268,8 @@ def dump_files(filename, priors=None, df=None, conf=False):
 
 
 def generate_segments(t_size, l_size, annotations, cov_edges=RATIO_INTERVALS,
-                      i_thr=0.5, rng_seed=None, return_annot=True):
+                      i_thr=0.5, rng_seed=None, method=None,
+                      strict_uniform=False, return_annot=True):
     """Sample segments from a video
 
     Parameters
@@ -285,6 +286,10 @@ def generate_segments(t_size, l_size, annotations, cov_edges=RATIO_INTERVALS,
         Threshold over intersection to consider that action appears inside a
         segment.
     rng_seed : int, optional
+    method : (None, str)
+        Flag to select type of 'coverage': (None or 'iou')
+    strict_uniform: bool
+        If true the samples are selected with strict uniform distribution.
     return_annot : bool, optional
         Return two extra outputs (new_annotations and n_annotations).
 
@@ -308,11 +313,15 @@ def generate_segments(t_size, l_size, annotations, cov_edges=RATIO_INTERVALS,
     i_segments, i_ratio = segment_intersection(annotations, segments,
                                                return_ratio_target=True)
 
-    # Coverage computation
-    # Note: summing i_ratio of segments may yield values greater that 1.
     idx_mask = i_ratio >= i_thr
-    i_ratio[~idx_mask] = 0  # 0 coverage for incomplete actions and empty seg
-    cov_ratio_per_segment = i_ratio.sum(axis=0)
+    if isinstance(method, str):
+        iou_ratio = segment_iou(annotations, segments)
+        cov_ratio_per_segment = iou_ratio.sum(axis=0)
+    else:
+        # Coverage computation
+        # Note: summing i_ratio of segments may yield values greater that 1.
+        i_ratio[~idx_mask] = 0  # For incomplete actions and empty seg.
+        cov_ratio_per_segment = i_ratio.sum(axis=0)
 
     idx_samples = sampling_with_uniform_groups(
         cov_ratio_per_segment, cov_edges, strict=False, rng=rng)
