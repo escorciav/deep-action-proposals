@@ -79,11 +79,12 @@ class BaselineData(object):
 
 
 class TempPriorsNoScale(object):
-    def __init__(self, n_prop=200):
+    def __init__(self, n_prop=200, rng_seed=None):
         self.n_prop = n_prop
         self.priors = None
         self.model = Pipeline([('scaling', StandardScaler()),
-                               ('kmeans', KMeans(n_prop))])
+                               ('kmeans', KMeans(n_prop,
+                                                 random_state=rng_seed))])
 
     def fit(self, X):
         """KMeans over temporal locations features

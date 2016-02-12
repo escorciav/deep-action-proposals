@@ -10,7 +10,7 @@ from utils import sampling_with_uniform_groups
 from utils import segment_format, segment_unit_scaling
 from utils import segment_intersection, segment_iou
 
-RATIO_INTERVALS = [0, 0.05, 0.15, 0.5, np.inf]
+RATIO_INTERVALS = [0, 0.05, 0.15, 0.4, np.inf]
 REQ_INFO_CP = ['video-name', 'f-init', 'n-frames', 'video-frames']
 
 
@@ -22,7 +22,8 @@ def wrapper_unit_scaling(x, T, s_ref, n_gt, *args, **kwargs):
     return segment_unit_scaling(xc, T, init_ref)
 
 
-def compute_priors(df, T, K=200, iou_thr=0.5, norm_fcn=wrapper_unit_scaling):
+def compute_priors(df, T, K=200, iou_thr=0.5, norm_fcn=wrapper_unit_scaling,
+                   i_thr=1.0, rng_seed=None):
     """Clustering of ground truth locations
 
     Parameters
@@ -39,6 +40,10 @@ def compute_priors(df, T, K=200, iou_thr=0.5, norm_fcn=wrapper_unit_scaling):
     norm_fcn : function
         Function to apply over ndarray [m x 2] of segments with
         format :=[f-init, f-end] before computing priors.
+    i_thr : float
+        ratio [0, 1] to include an annotation inside a segment.
+    rng_seed : int
+        Seed for random number generator
 
     Outputs
     -------
@@ -69,7 +74,7 @@ def compute_priors(df, T, K=200, iou_thr=0.5, norm_fcn=wrapper_unit_scaling):
         gtruth_c = df.loc[idx, ['f-init', 'n-frames']]
         gtruth_b = segment_format(np.array(gtruth_c), 'd2b')
         segment_lst[i], gt_list_i, n_gt_lst[i] = generate_segments(
-            T, L[i], gtruth_b)
+            T, L[i], gtruth_b, method='iou', rng_seed=rng_seed, i_thr=i_thr)
         n_seg[i] = segment_lst[i].shape[0]
         mapped_gt_lst[i] = np.vstack(gt_list_i)
 
@@ -80,21 +85,22 @@ def compute_priors(df, T, K=200, iou_thr=0.5, norm_fcn=wrapper_unit_scaling):
     X = norm_fcn(mapped_gt, T, segments, n_gt)
 
     # Clustering
-    model = TempPriorsNoScale(K)
+    model = TempPriorsNoScale(K, rng_seed=rng_seed)
     model.fit(X)
     priors = model.priors
 
     # Matching
-    score = np.zeros((segments.shape[0], priors.shape[0]))
+    score = np.empty((segments.shape[0], priors.shape[0]), dtype=int)
+    j = 0
     for i, v in enumerate(segment_lst):
         # Scale priors and use boundary format
         mapped_priors_b = segment_format(priors * T, 'c2b')
         s_ref = np.expand_dims(np.repeat(v[:, 0], n_gt_lst[i]), 1)
-        # Reference mapped gt on [0 - T] interval
-        mapped_gt_i_ref = mapped_gt_lst[i] - s_ref
 
-        if mapped_gt_i_ref.size == 0:
+        # Reference mapped gt on [0 - T] interval
+        if mapped_gt_lst[i].size == 0:
             continue
+        mapped_gt_i_ref = mapped_gt_lst[i] - s_ref
         if (mapped_gt_i_ref[:, 0] < 0).sum() > 0:
             msg = ('Initial frame must be greater that zero. Running at your '
                    'own risk. Debug is needed.')
@@ -102,7 +108,14 @@ def compute_priors(df, T, K=200, iou_thr=0.5, norm_fcn=wrapper_unit_scaling):
 
         # IOU computation
         iou = segment_iou(mapped_priors_b, mapped_gt_i_ref)
-        score[i, :] = iou.max(axis=1) > iou_thr
+
+        # Map IOU of priors for each segment
+        idx = [0] + np.cumsum(n_gt_lst[i]).tolist()
+        max_iou = np.vstack(map(lambda u, v: np.zeros(K, dtype=int)
+                                if u == v else iou[:, u:v].max(axis=1),
+                                idx[:-1], idx[1::]))
+        score[j:j+n_seg[i], :] = max_iou > iou_thr
+        j += n_seg[i]
 
     # Build DataFrame
     col_triads = ['c_{}'.format(i) for i in range(K)]
@@ -194,7 +207,8 @@ def evaluate_priors(df, priors, T, stride=16, iou_thr=0.5,
         gtruth_b = segment_format(gtruth_c, 'd2b')
 
         # Slide priors over time.
-        priors_t, k_idx = compute_priors_over_time(mapped_priors_b, T, L, stride)
+        priors_t, k_idx = compute_priors_over_time(mapped_priors_b, T,
+                                                   L, stride)
 
         # Not found priors for this video.
         if priors_t.shape[0] == 0:
