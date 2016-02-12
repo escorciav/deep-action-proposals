@@ -7,10 +7,12 @@ import pandas as pd
 from utils import dump_frames
 
 
-def dump_wrapper(filename, output_folder, baseformat, fullpath):
+def dump_wrapper(filename, output_folder, baseformat, fullpath, video_path):
     filename_noext = os.path.splitext(filename)[0]
     if fullpath:
         filename_noext = os.path.basename(filename_noext)
+    if video_path:
+        filename = os.path.join(video_path, filename)
     output_dir = os.path.join(output_folder, filename_noext)
     return dump_frames(filename, output_dir, baseformat)
 
@@ -28,14 +30,17 @@ def input_parse():
                    help='Number of CPUs')
     p.add_argument('-ff', '--fullpath', action='store_true',
                    help='Input-file uses fullpath instead of rel-path')
+    p.add_argument('-vpath', '--video_path', default=None,
+                   help='Path where the videos are located.')
     args = p.parse_args()
     return args
 
 
-def main(input_file, output_folder, baseformat, n_jobs, fullpath):
+def main(input_file, output_folder, baseformat, n_jobs, fullpath, video_path):
     df = pd.read_csv(input_file, sep=' ', header=None)
     Parallel(n_jobs=n_jobs)(delayed(dump_wrapper)(i, output_folder,
-                                                  baseformat, fullpath)
+                                                  baseformat, fullpath,
+                                                  video_path)
                             for i in df.loc[:, 0])
     return None
 
