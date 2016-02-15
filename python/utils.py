@@ -161,7 +161,8 @@ def c3d_stack_feature(dirname, files=None, layer='.fc7-1', savefile=None,
     save : str, optional.
         Dump features in one single file.
     pool_type : str, optional.
-        Global pooling strategy over a bunch of features.
+        Global pooling strategy over a bunch of features. Choices are limited
+        'mean', 'max', 'pyr:l,mean/max'.
 
     Outputs
     -------
@@ -201,6 +202,9 @@ def c3d_stack_feature(dirname, files=None, layer='.fc7-1', savefile=None,
             arr = arr.mean(axis=0)
         elif pool_type == 'max':
             arr = arr.max(axis=0)
+        elif 'pyr' in pool_type:
+            level, pool_type = pool_type.split(':')[1].split(',')
+            arr = feature_1dpyramid(arr, int(level), pool_type)
         else:
             raise ValueError('Unknown pool_type: ' + pool_type)
         arr = np.expand_dims(arr, axis=0)
