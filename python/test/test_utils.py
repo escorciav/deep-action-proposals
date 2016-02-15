@@ -23,7 +23,7 @@ class test_c3d_utilities(unittest.TestCase):
         file_in_out = [filename + '.in', filename + '.out']
         dir_out = filename + '_dir'
         summary = utils.c3d_input_file_generator(filename, file_in_out,
-                                                    output_folder=dir_out)
+                                                 output_folder=dir_out)
         self.assertTrue(summary['success'])
         self.assertEqual(1.0/3, summary['pctg-skipped-segments'])
         self.assertEqual(4.0/3, summary['ratio-clips-segments'])
@@ -54,6 +54,27 @@ class test_general_utilities(unittest.TestCase):
     @unittest.skip("A contribution is required")
     def test_idx_of_queries(self):
         pass
+
+    def test_feature_1dpyramid(self):
+        x = np.array([[0, 4],
+                      [4, 2],
+                      [0, 4],
+                      [2, 0],
+                      [1, 2],
+                      [1, 4],
+                      [3, 4],
+                      [1, 4],
+                      [1, 1],
+                      [4, 2]])
+        self.assertEqual((2,), utils.feature_1dpyramid(x).shape)
+        py1_x = utils.feature_1dpyramid(x, 1)
+        self.assertEqual((6,), py1_x.shape)
+        rst = np.array([2, 3])/np.sqrt(13)
+        np.testing.assert_array_almost_equal(rst, py1_x[4:6])
+        py2_x = utils.feature_1dpyramid(x, 2)
+        self.assertEqual((14,), py2_x.shape)
+        rst = np.array([1, 2])/np.sqrt(5)
+        np.testing.assert_array_almost_equal(rst, py2_x[8:10])
 
 
 def test_count_frames():
