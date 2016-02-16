@@ -6,6 +6,7 @@ import __future__
 from subprocess import check_output
 
 import cv2
+import h5py
 import hickle as hkl
 import numpy as np
 import natsort
@@ -219,7 +220,8 @@ def c3d_stack_feature(dirname, files=None, layer='.fc7-1', savefile=None,
 
 
 def c3d_batch_feature_stacking(df, dirname, t_size=16, t_stride=8,
-                               savedir=None, stack_prm=None, as_array=True):
+                               feat_size=4096, savedir=None, stack_prm=None,
+                               persistent=None, h5mode='x', h5prm=None):
     """Stack C3D feature for a bunch of segments
 
     Parameters
@@ -237,20 +239,31 @@ def c3d_batch_feature_stacking(df, dirname, t_size=16, t_stride=8,
         Fullpath of directory to save results, if required.
     stack_prm : dict.
         Parameters for c3d_stack_feature function.
-    as_array : bool, optional
-        return ndarray instead of list.
+    persistent : str, optional
+        save stack of feature-arrays as HDF5. Use it when your memory is scarce
+        wrt to the number of rows on df and feature size.
+    h5mode : str, optional.
+        Mode to open hdf5 file.
+    h5prm : dict, optional.
+        dict with parameter for HDF5 saved on persistent mode.
 
     Outputs
     -------
-    arr : List or ndarray.
+    arr : ndarray.
         3-dim array of shape [df.shape[0], m, d] where d := dimensionality of
         the feature space and m is df.loc[i, 'duration']
-    success : bool, optional
-        Inform if as_array was done succesfully.
+
+    Notes
+    -----
+    It assumes that segments in df have the same length
 
     """
+    n, T = df.shape[0], df.loc[:, 'duration'].min()
+    Te = (T - t_size) / t_stride + 1
     if stack_prm is None:
         stack_prm = {}
+    if h5prm is None:
+        h5prm = dict(chunks=True, compression='lzf')
 
     def wrapper_c3d_stacking(video_name, f_init, duration, dirname=dirname,
                              T=t_size, s=t_stride, savedir=savedir,
@@ -268,18 +281,24 @@ def c3d_batch_feature_stacking(df, dirname, t_size=16, t_stride=8,
 
         return tmp
 
-    arr = [None] * df.shape[0]
-    for i, v in enumerate(df.index):
-        arr[i] = wrapper_c3d_stacking(*df.loc[v, ['video-name', 'f-init',
-                                                  'duration']])
+    if persistent:
+        f = h5py.File(persistent, h5mode)
+        arr = f.create_dataset('segment_features', (n, Te, feat_size),
+                               dtype='float32', **h5prm)
+        arr.dims[0].label = 'batch'
+        arr.dims[1].label = 't_step'
+        arr.dims[2].label = 'feature'
+    else:
+        arr = np.empty((n, T, feat_size), dtype=np.float32)
 
-    if as_array:
-        try:
-            stacked_arr = np.stack(arr)
-        except:
-            return arr, False
-        return stacked_arr, True
-    return arr
+    for i, v in enumerate(df.index):
+        arr[i, ...] = wrapper_c3d_stacking(*df.loc[v, ['video-name', 'f-init',
+                                                       'duration']])
+
+    if persistent:
+        f.close()
+    else:
+        return arr
 
 
 # General utilities
