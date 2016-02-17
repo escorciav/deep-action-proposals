@@ -367,7 +367,7 @@ def feature_1dpyramid(x, levels=0, pool_type='mean', norm=True, unit=False):
         n = 2 ** i
         edges = np.ones(n + 1, dtype=int) * 1.0 / n
         edges[0] = 0
-        edges = (np.cumsum(edges) * m).astype(int)
+        edges = np.round(np.cumsum(edges) * m).astype(int)
         for j in range(n):
             if pool_type == 'mean':
                 arr[idx][...] = x[edges[j]:edges[j + 1], :].mean(axis=0)
