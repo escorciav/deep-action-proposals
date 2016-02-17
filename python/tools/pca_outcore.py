@@ -10,38 +10,52 @@ import time
 import h5py
 import hickle as hkl
 import numpy as np
+from joblib import delayed, Parallel
 
 THUMOS14_VAL = 'data/thumos14/c3d/val_c3d_temporal.hdf5'
 
 
-def main(h5file=THUMOS14_VAL, t_size=16, t_stride=8, feat_dim=4096,
-         source='c3d_features', log_loop=500000):
+def main(h5file=THUMOS14_VAL, t_size=16, t_stride=8, source='c3d_features',
+         n_jobs=1):
     print time.ctime(), 'start: loading hdf5'
     fid = h5py.File(h5file, 'r')
+    video_names = fid.keys()
     print time.ctime(), 'finish: loading hdf5'
 
-    # Compute mean
+    def compute_mean(chunk, f=fid, source=source):
+        feat_dim = f[chunk[0]][source].shape[1]
+        mean_c, n_c = np.zeros((1, feat_dim), dtype=np.float32), 0
+        for i in chunk:
+            feat_c = f[i][source][:]
+            n_c += feat_c.shape[0]
+            mean_c += feat_c.sum(axis=0)
+        return mean_c, n_c
+
     print time.ctime(), 'start: compute mean'
-    x_mean, n = np.zeros((1, feat_dim), dtype=np.float32), 0
-    for i, v in fid.iteritems():
-        feat = v[source][:]
-        n += feat.shape[0]
-        x_mean += feat.sum(axis=0)
+    rst = Parallel(n_jobs=n_jobs)(delayed(compute_mean)(video_names[i::n_jobs])
+                                  for i in xrange(n_jobs))
+    x_mean, n = rst
+    for mean_c, n_c in rst[1::]:
+        x_mean += mean_c
+        n += n_c
     x_mean /= n
     print time.ctime(), 'finish: compute mean'
 
-    # Compute A.T A
-    print time.ctime(), 'start: out-of-core matrix multiplication'
-    j, n_videos = 0, len(fid.keys())
-    ATA = np.zeros((feat_dim, feat_dim), dtype=np.float32)
-    for i, v in fid.iteritems():
-        feat = v[source][:]
-        feat_ = feat - x_mean
-        ATA += np.dot(feat_.T, feat_)
-        j += 1
+    def compute_ATA(chunk, f=fid, source=source, mean=x_mean):
+        feat_dim = f[chunk[0]][source].shape[1]
+        ATA_c = np.zeros((feat_dim, feat_dim), dtype=np.float32)
+        for i in chunk:
+            feat_c = f[i][source][:]
+            feat_c_ = feat_c - mean
+            ATA_c += np.dot(feat_c_.T, feat_c_)
+        return ATA_c
 
-        if j % log_loop == 0:
-            print time.ctime(), 'Iteration {}/{}'.format(j, n_videos)
+    print time.ctime(), 'start: out-of-core matrix multiplication'
+    rst = Parallel(n_jobs=n_jobs)(delayed(compute_ATA)(video_names[i::n_jobs])
+                                  for i in xrange(n_jobs))
+    ATA = rst[0]
+    for ATA_c in rst[1::]:
+        ATA += ATA_c
     print time.ctime(), 'finish: out-of-core matrix multiplication'
 
     # SVD
