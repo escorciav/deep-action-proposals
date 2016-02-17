@@ -1,8 +1,8 @@
-#!/bin/bash/env python
+#!/usr/bin/env python
 """
 
 PCA done via matrix multiplication out-of-core. It is here just to be
-informative i.e. hostile and full of dependencies parsing of inputs.
+informative an argument parser is welcome.
 
 """
 import time
