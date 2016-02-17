@@ -1,3 +1,9 @@
+#!/bin/bash/env python
+"""
+
+Dimensionality reduction of features done via Randomized PCA
+
+"""
 import argparse
 import os
 
