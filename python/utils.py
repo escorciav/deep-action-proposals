@@ -302,38 +302,34 @@ def c3d_batch_feature_stacking(df, dirname, t_size=16, t_stride=8,
 
 
 # General utilities
-def idx_of_queries(df, col_name, queries, n_samples=None, rng_seed=None):
-    """Return indexes of several queries on a DataFrame
+def balance_labels(Y, batch_size=1):
+    """Compute weights to balance distribution btw 1/0
 
     Parameters
     ----------
-    df : DataFrame
-    col_name : int, str
-    queries : list, series, 1-dim ndarray
-    n_samples : int
-    rng_seed : rng instance or int
+    Y : ndarray
+        Binary Label matrix or vector {0, 1}.
+    batch_size : int, optional
+        mini-batch size
 
     Outputs
     -------
-    idx : ndarray
-        1-dim array of index over of queries
+    w_pos : float
+        Weight for samples labeled as 1
+    w_neg : float
+        Weight for samples labeled as 0
 
     """
-    idx_lst = [None] * queries.size
-    # There should be a pandas way of doing this
-    for i, v in enumerate(queries):
-        idx_lst[i] = (df[col_name] == v).nonzero()[0]
-    idx = np.hstack(idx_lst)
+    w_pos = Y.sum() * 1.0 / batch_size
+    w_neg = Y.size * 1.0 / batch_size - w_pos
 
-    if n_samples is None:
-        return idx
-    elif isinstance(n_samples, int):
-        if rng_seed is None or isinstance(rng_seed, int):
-            rng = np.random.RandomState(rng_seed)
-        else:
-            rng = rng_seed
-
-        return rng.permutation(idx)[:n_samples]
+    if w_pos > w_neg:
+        w_neg, w_pos = 1.0, w_neg / w_pos
+    elif w_pos < w_neg:
+        w_neg, w_pos = w_pos / w_neg, 1.0
+    else:
+        w_pos = w_neg = 1.0
+    return w_pos, w_neg
 
 
 def feature_1dpyramid(x, levels=0, pool_type='mean', norm=True, unit=False):
@@ -433,6 +429,40 @@ def feature_1dconcat(x, n=8, pool_type='mean', norm=True, unit=False):
     if unit:
         return concat_feat / n
     return concat_feat
+
+
+def idx_of_queries(df, col_name, queries, n_samples=None, rng_seed=None):
+    """Return indexes of several queries on a DataFrame
+
+    Parameters
+    ----------
+    df : DataFrame
+    col_name : int, str
+    queries : list, series, 1-dim ndarray
+    n_samples : int
+    rng_seed : rng instance or int
+
+    Outputs
+    -------
+    idx : ndarray
+        1-dim array of index over of queries
+
+    """
+    idx_lst = [None] * queries.size
+    # There should be a pandas way of doing this
+    for i, v in enumerate(queries):
+        idx_lst[i] = (df[col_name] == v).nonzero()[0]
+    idx = np.hstack(idx_lst)
+
+    if n_samples is None:
+        return idx
+    elif isinstance(n_samples, int):
+        if rng_seed is None or isinstance(rng_seed, int):
+            rng = np.random.RandomState(rng_seed)
+        else:
+            rng = rng_seed
+
+        return rng.permutation(idx)[:n_samples]
 
 
 # Video utilities
