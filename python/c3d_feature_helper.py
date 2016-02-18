@@ -4,6 +4,7 @@ import numpy as np
 from utils import feature_1dconcat
 from utils import feature_1dpyramid
 
+
 class Feature(object):
     def __init__(self, filename, feat_id='c3d_features',
                  t_size=16, t_stride=8, pool_type='mean'):
@@ -45,19 +46,22 @@ class Feature(object):
         self.fobj.close()
         self.fobj = None
 
-    def read_feat(self, video_name, f_init=None, duration=None):
+    def read_feat(self, video_name, f_init=None, duration=None,
+                  return_reshaped=True):
         """Read C3D features and stack them into memory.
-        
+
         Parameters
         ----------
         video-name : str.
             Video identifier.
         f_init : int, optional.
-            Initial frame index. By default the feature is 
+            Initial frame index. By default the feature is
             sliced from frame 1.
         duration : int, optional.
-            Duration in term of number of frames. By default 
+            Duration in term of number of frames. By default
             it is set till the last feature.
+        return_reshaped : bool.
+            Return stack of features reshaped when pooling is applied.
         """
         if not self.fobj:
             raise ValueError('The object instance is not open.')
@@ -72,11 +76,18 @@ class Feature(object):
             feat = self.fobj[video_name][self.feat_id][:duration-T+1:s, :]
         else:
             feat = self.fobj[video_name][self.feat_id][:-T+1:s, :]
-        return self._feature_pooling(feat)
+        pooled_feat = self._feature_pooling(feat)
 
-    def read_feat_batch_from_video(self, video_name, f_init_array, 
+        if not return_reshaped:
+            feat_dim = feat.shape[1]
+            pooled_feat = pooled_feat.reshape((-1, feat_dim))
+            if not pooled_feat.flags['C_CONTIGUOUS']:
+                return np.ascontigousarray(pooled_feat)
+        return pooled_feat
+
+    def read_feat_batch_from_video(self, video_name, f_init_array,
                                    duration=256, return_reshaped=True):
-        """Read C3D feature batch from a video. The slicing 
+        """Read C3D feature batch from a video. The slicing
            is operated in memory.
 
         Parameters
@@ -113,7 +124,7 @@ class Feature(object):
 
         # Iterate over each segment.
         for i, f_init in enumerate(f_init_array):
-            frames_of_interest = range(f_init, 
+            frames_of_interest = range(f_init,
                                        f_init + duration - t_size + 1, s)
             feat_stack[i, ...] = self._feature_pooling(
                 raw_feat_stack[frames_of_interest, :])
@@ -129,7 +140,7 @@ class Feature(object):
         Parameters
         ----------
         x : ndarray.
-            [m x d] array of features.m is the number of features and 
+            [m x d] array of features.m is the number of features and
             d is the dimensionality of the feature space.
         """
         if x.ndim != 2:
