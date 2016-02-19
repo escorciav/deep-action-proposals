@@ -261,8 +261,9 @@ def dump_files(filename, priors=None, df=None, conf=False):
     filefmt = filename + '_{}.{}'
     # HDF5 with priors
     if priors is not None:
-        hkl.dump(priors, filefmt.format('priors', 'hkl'), mode='w',
-                 compression='gzip', compression_opts=9)
+        hkl.dump(priors.astype(np.float32),
+                 filefmt.format('priors', 'hkl'), mode='w',
+                 compression='gzip', compression_opts=1)
 
     # List of videos ready for C3D feature extractor wrapper
     if df is not None:
@@ -277,8 +278,9 @@ def dump_files(filename, priors=None, df=None, conf=False):
     # HDF5 with confidences
     if conf and df is not None:
         lst = ['c_{}'.format(i) for i in range(df.columns.size - 4)]
-        hkl.dump(np.array(df.loc[:, lst]), filefmt.format('conf', 'hkl'),
-                 mode='w', compression='gzip', compression_opts=9)
+        hkl.dump(np.array(df.loc[:, lst]).astype(np.int32),
+                 filefmt.format('conf', 'hkl'),
+                 mode='w', compression='gzip', compression_opts=1)
 
 
 def generate_segments(t_size, l_size, annotations, cov_edges=RATIO_INTERVALS,
