@@ -85,14 +85,14 @@ def report_metrics(y_val, val_conf, batch_size):
         val_roc = roc_auc_score(y_true, y_pred)
 
         n_pos = y_true.sum()
-        idx_sorted = np.argsort(y_pred)
+        idx_sorted = np.argsort(-y_pred)
         val_rec = []
 
         logging.info("Val-AP {:.6f}".format(val_ap))
         logging.info("Val-ROC {:.6f}".format(val_roc))
         for i, v in enumerate([10, 25, 50, 75]):
             tp = y_true[idx_sorted[:int(v * n / 100)]].sum()
-            val_rec.append(tp / n_pos)
+            val_rec.append(tp * 1.0 / n_pos)
             logging.info("Val-{} {:.6f}".format(v, val_rec[i]))
         return val_ap, val_rec[2]
 
