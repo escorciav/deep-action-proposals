@@ -17,6 +17,18 @@ ALPHA = [1e-6, 5e-2, 1e-1, 0.3]
 MODEL_CHOICES = ['lstm', 'mlp']
 
 
+def set_model(model_type, num_proposal=None, depth=None, width=None,
+              seq_length=None, drop_in=None, drop_out=None):
+    # Set model string
+    if model_type.lower() == 'mlp':
+        model_fmt = 'mlp:{},{},{},{},{}'
+        model = model_fmt.format(num_proposal, depth, width, drop_in, drop_out)
+    elif model_type.lower() == 'lstm:':
+        model_fmt = 'lstm:{},{},{},{}'
+        model = model_fmt.format(num_proposal, seq_length, width, depth)
+    return model
+
+
 def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
          n_epoch, l_rate, alpha, init_model,
          id_fmt, id_offset, model_type, gpu, snapshot_freq,
@@ -33,29 +45,25 @@ def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
     env_vars = os.environ
     env_vars['THEANO_FLAGS'] = dev_flags
 
-    # Set model string
-    if model_type.lower() == 'mlp':
-        model_fmt = 'mlp:{},{},{},{},{}'
-        model = model_fmt.format(num_proposal, depth, width, drop_in, drop_out)
-    elif model_type.lower() == 'lstm:':
-        model_fmt = 'lstm:{},{},{},{}'
-        model = model_fmt.format(num_proposal, seq_length, width, depth)
-
     # Include init_model to reinitialize
     include_init_model = []
     if init_model:
         include_init_model = ['-i', str(init_model[0]), str(init_model[1])]
 
     # Cartesian product
-    prm = np.dstack(np.meshgrid(l_rate, alpha)).reshape(-1, 2)
+    prm = np.vstack(map(lambda x: x.flatten(),
+                        np.meshgrid(l_rate, alpha, depth, width,
+                                    indexing='ij')))
 
     # Launch process
     pid_pool = {}
-    for i in range(prm.shape[0]):
+    for i in range(prm.shape[1]):
         exp_id = id_fmt.format(i + id_offset)
+        model = set_model(model_type, num_proposal, prm[2, i], prm[3, i],
+                          seq_length, drop_in, drop_out)
         cmd = ['python', 'python/learning.py', '-id', exp_id, '-m', model,
-               '-a', str(prm[i, 1]), '-ne', str(n_epoch), '-od', output_dir,
-               '-lr', str(prm[i, 0]), '-dp', ds_prefix, '-ds', ds_suffix,
+               '-a', str(prm[1, i]), '-ne', str(n_epoch), '-od', output_dir,
+               '-lr', str(prm[0, i]), '-dp', ds_prefix, '-ds', ds_suffix,
                '-sf', str(snapshot_freq)] + include_init_model
         print cmd
         pid_pool[exp_id] = Popen(cmd, env=env_vars)
@@ -79,10 +87,12 @@ if __name__ == '__main__':
     h_idoffset = 'Offset for exp-id. Used it output_dir is the same'
     p = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    p.add_argument('-np', '--num_proposal', default=64,
+    p.add_argument('-np', '--num_proposal', default=16,
                    help='Number of proposals/priors')
-    p.add_argument('-d', '--depth', default=2, help='Num FC layers')
-    p.add_argument('-w', '--width', default=5000, help='No hidden units')
+    p.add_argument('-d', '--depth', default=2, nargs='+', type=int,
+                   help='Num FC layers')
+    p.add_argument('-w', '--width', default=5000, nargs='+', type=int,
+                   help='No hidden units')
     p.add_argument('-l', '--seq_length', default=16, help='LSTM length')
     p.add_argument('-din', '--drop_in', default=0, help='Dropout inputs')
     p.add_argument('-dout', '--drop_out', default=0.5, help='Dropout hidden')
