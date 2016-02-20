@@ -22,17 +22,19 @@ def set_model(model_type, num_proposal=None, depth=None, width=None,
     # Set model string
     if model_type.lower() == 'mlp':
         model_fmt = 'mlp:{},{},{},{},{}'
-        model = model_fmt.format(num_proposal, depth, width, drop_in, drop_out)
-    elif model_type.lower() == 'lstm:':
+        model = model_fmt.format(int(num_proposal), int(depth), int(width),
+                                 drop_in, drop_out)
+    elif model_type.lower() == 'lstm':
         model_fmt = 'lstm:{},{},{},{}'
-        model = model_fmt.format(num_proposal, seq_length, width, depth)
+        model = model_fmt.format(int(num_proposal), int(seq_length),
+                                 int(width), int(depth))
     return model
 
 
 def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
          n_epoch, l_rate, alpha, init_model,
          id_fmt, id_offset, model_type, gpu, snapshot_freq,
-         output_dir, ds_prefix, ds_suffix, idle_time):
+         output_dir, ds_prefix, ds_suffix, idle_time, debug):
     # Set dir for logs, snapshots, etc.
     if output_dir is None:
         output_dir = ds_prefix
@@ -65,7 +67,8 @@ def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
                '-a', str(prm[1, i]), '-ne', str(n_epoch), '-od', output_dir,
                '-lr', str(prm[0, i]), '-dp', ds_prefix, '-ds', ds_suffix,
                '-sf', str(snapshot_freq)] + include_init_model
-        print cmd
+        if debug:
+            print cmd
         pid_pool[exp_id] = Popen(cmd, env=env_vars)
 
     # Polling
@@ -119,5 +122,7 @@ if __name__ == '__main__':
     p.add_argument('-g', '--gpu', default=0, type=int, help='Device ID')
     p.add_argument('-s', '--idle_time', default=60*5, type=int,
                    help='Idle time between polling stages')
+    p.add_argument('-dg', '--debug', action='store_true',
+                   help='Print cmd command to debug errors')
     args = p.parse_args()
     main(**vars(args))
