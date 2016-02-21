@@ -90,10 +90,10 @@ def report_metrics(y_val, val_conf, batch_size):
 
         logging.info("Val-AP {:.6f}".format(val_ap))
         logging.info("Val-ROC {:.6f}".format(val_roc))
-        for i, v in enumerate([10, 25, 50, 75]):
+        for i, v in enumerate([10, 25, 50, 75, 90, 100]):
             tp = y_true[idx_sorted[:int(v * n / 100)]].sum()
             val_rec.append(tp * 1.0 / n_pos)
-            logging.info("Val-{} {:.6f}".format(v, val_rec[i]))
+            logging.info("Val-R{} {:.6f}".format(v, val_rec[i]))
         return val_ap, val_rec[2]
 
 
