@@ -103,6 +103,8 @@ class Feature(object):
         """
         if not self.fobj:
             raise ValueError('The object instance is not open.')
+        # Sanitize.
+        f_init_array = f_init_array.astype(int)
         # Load all features associated to video-name.
         raw_feat_stack = self.fobj[video_name][self.feat_id].value
         t_size = self.t_size
