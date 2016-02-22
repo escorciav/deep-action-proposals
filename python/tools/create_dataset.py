@@ -119,8 +119,23 @@ def main(ref_file, rootfile, output_dir, suffix_fmt, conf_file, train_ratio,
                                      return_reshaped=feat_2d)
             dset[i, ...] = feat
 
-            if verbose and int(i * 100 / idx_s.size + 1) % verbose_level == 0:
+            pctg_it = int(max(i * 100 / idx_s.size, 1))
+            if verbose and pctg_it % verbose_level == 0:
                 print 'Processed segments {}/{}'.format(i, idx_s.size)
+        f.close()
+
+        # Dump label matrix
+        conffile = (filename.split('_')[0] + '_conf' +
+                    os.path.splitext(filename)[1])
+        colnames = ['c_{}'.format(i) for i in range(df.columns.size - 4)]
+        with h5py.File(conffile, 'w') as f:
+            dset = f.create_dataset("data", (idx_s.size, len(colnames)),
+                                    dtype=np.int32, chunks=True)
+            dset.dims[0].label = 'batch'
+            dset.dims[1].label = 'id'
+            dset[...] = np.array(df.loc[idx_s, colnames])
+            # Compatibility with previous code
+            f.create_dataset('type', data=np.array(['ndarray']))
 
     # Loop to generate train and val features
     for i in dsset:
