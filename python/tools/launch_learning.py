@@ -34,7 +34,7 @@ def set_model(model_type, num_proposal=None, depth=None, width=None,
 def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
          n_epoch, l_rate, alpha, init_model,
          id_fmt, id_offset, model_type, gpu, snapshot_freq,
-         output_dir, ds_prefix, ds_suffix, idle_time, debug):
+         output_dir, ds_prefix, ds_suffix, idle_time, debug, verbose):
     # Set dir for logs, snapshots, etc.
     if output_dir is None:
         output_dir = ds_prefix
@@ -52,6 +52,10 @@ def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
     if init_model:
         include_init_model = ['-i', str(init_model[0]), str(init_model[1])]
 
+    debug_mode = []
+    if debug:
+        debug_mode = ['-dg']
+
     # Cartesian product
     prm = np.vstack(map(lambda x: x.flatten(),
                         np.meshgrid(l_rate, alpha, depth, width,
@@ -66,8 +70,8 @@ def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
         cmd = ['python', 'python/learning.py', '-id', exp_id, '-m', model,
                '-a', str(prm[1, i]), '-ne', str(n_epoch), '-od', output_dir,
                '-lr', str(prm[0, i]), '-dp', ds_prefix, '-ds', ds_suffix,
-               '-sf', str(snapshot_freq)] + include_init_model
-        if debug:
+               '-sf', str(snapshot_freq)] + include_init_model + debug_mode
+        if verbose:
             print cmd
         pid_pool[exp_id] = Popen(cmd, env=env_vars)
 
@@ -124,5 +128,6 @@ if __name__ == '__main__':
                    help='Idle time between polling stages')
     p.add_argument('-dg', '--debug', action='store_true',
                    help='Print cmd command to debug errors')
+    p.add_argument('-v', '--verbose', action='store_true')
     args = p.parse_args()
     main(**vars(args))

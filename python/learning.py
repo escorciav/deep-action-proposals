@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import time
-from argparse import ArgumentDefaultsHelpFormatter
 
 import hickle as hkl
 import lasagne
@@ -76,25 +75,39 @@ def dump_model(filename, network):
     logging.info("Model saved on " + filename)
 
 
-def report_metrics(y_val, val_conf, batch_size):
-        n = (y_val.shape[0] / batch_size) * batch_size
-        y_true = y_val[0:n, :].flatten()
-        y_pred = np.vstack(val_conf).flatten()
+def forward_pass(fn, X, y, priors, batch_size, shuffle=False):
+    # Helper function to perform forward_pass over a dataset
+    err, n_batches, pred = 0, 0, []
+    for batch in iterate_minibatches(X, y, batch_size, shuffle=shuffle):
+        inputs, targets = batch
+        outputs = fn(inputs, priors, targets)
+        err += outputs[0]
+        pred.append(outputs[1])
+        n_batches += 1
+    return err, n_batches, np.vstack(pred)
 
-        val_ap = average_precision_score(y_true, y_pred)
-        val_roc = roc_auc_score(y_true, y_pred)
 
-        n_pos = y_true.sum()
-        idx_sorted = np.argsort(-y_pred)
-        val_rec = []
+def report_metrics(y_dset, y_pred, batch_size, dset='Val'):
+    # Print additional metrics involving predictions
+    n_rows = (y_dset.shape[0] / batch_size) * batch_size
+    y_true = y_dset[0:n_rows, :].flatten()
+    y_pred = y_pred.flatten()
 
-        logging.info("Val-AP {:.6f}".format(val_ap))
-        logging.info("Val-ROC {:.6f}".format(val_roc))
-        for i, v in enumerate([10, 25, 50, 75, 90, 100]):
-            tp = y_true[idx_sorted[:int(v * n / 100)]].sum()
-            val_rec.append(tp * 1.0 / n_pos)
-            logging.info("Val-R{} {:.6f}".format(v, val_rec[i]))
-        return val_ap, val_rec[2]
+    val_ap = average_precision_score(y_true, y_pred)
+    val_roc = roc_auc_score(y_true, y_pred)
+
+    n = y_true.size
+    n_pos = y_true.sum()
+    idx_sorted = np.argsort(-y_pred)
+    val_rec = []
+
+    logging.info(dset + "-AP {:.6f}".format(val_ap))
+    logging.info(dset + "-ROC {:.6f}".format(val_roc))
+    for i, v in enumerate([10, 25, 50, 75, 100]):
+        tp = y_true[idx_sorted[:int(v * n / 100)]].sum()
+        val_rec.append(tp * 1.0 / n_pos)
+        logging.info(dset + "-R{} {:.6f}".format(v, val_rec[i]))
+    return val_ap, val_rec[2]
 
 
 # ############################## Main program #################################
@@ -102,7 +115,7 @@ def report_metrics(y_val, val_conf, batch_size):
 def main(exp_id='0', model='', num_epochs=500, alpha=0.3, batch_size=500,
          l_rate=0.01, grad_clip=100, rng_seed=None, init_model=None,
          output_dir='', ds_prefix=None, ds_suffix=None, snapshot_freq=125,
-         **kwargs):
+         debug=False, **kwargs):
     # Setup logging
     output_dir = os.path.join(output_dir, exp_id)
     if not os.path.exists(output_dir):
@@ -195,10 +208,9 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, batch_size=500,
     logging.info("Starting training...")
     # We iterate over epochs:
     for epoch in xrange(num_epochs):
-        # In each epoch, we do a full pass over the training data:
-        train_err = 0
-        train_batches = 0
+        # In each epoch, we do a full pass over the training data
         start_time = time.time()
+        train_err, train_batches = 0, 0
         for batch in iterate_minibatches(X_train, y_train, batch_size,
                                          shuffle=False):
             inputs, targets = batch
@@ -206,23 +218,20 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, batch_size=500,
             train_err += train_fn(inputs, priors, targets)
             train_batches += 1
 
-        # And a full pass over the validation data:
-        val_err, val_conf = 0, []
-        val_batches = 0
-        for batch in iterate_minibatches(X_val, y_val, batch_size,
-                                         shuffle=False):
-            inputs, targets = batch
-            err = val_fn(inputs, priors, targets)
-            val_err += err[0]
-            val_conf.append(err[1])
-            val_batches += 1
+        # and a full pass over the validation data
+        val_err, val_batches, val_pred = forward_pass(val_fn, X_val, y_val,
+                                                      priors, batch_size)
 
         # Then we print the results for this epoch
         logging.info("Epoch {}".format(epoch_0 + epoch + 1))
         logging.info("Elapsed time {:.3f}".format(time.time() - start_time))
         logging.info("Train-loss {:.6f}".format(train_err / train_batches))
+        if debug:
+            _, _, train_pred = forward_pass(val_fn, X_train, y_train, priors,
+                                            batch_size)
+            report_metrics(y_train, train_pred, batch_size, 'Train')
         logging.info("Val-loss {:.6f}".format(val_err / val_batches))
-        val_ap, rec50 = report_metrics(y_val, val_conf, batch_size)
+        val_ap, rec50 = report_metrics(y_val, val_pred, batch_size)
 
         # Snapshot of the model
         if (epoch + 1) % snapshot_freq == 0:
@@ -242,8 +251,9 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, batch_size=500,
 
 def input_parser():
     description = "Train MLP/LSTM using Lasagne."
-    p = argparse.ArgumentParser(description=description,
-                                formatter_class=ArgumentDefaultsHelpFormatter)
+    p = argparse.ArgumentParser(
+        description=description,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     p.add_argument('-id', '--exp_id', help='Experiment ID')
     h_model = ("'mlp:OUT,DEPTH,WIDTH,DROP_IN,DROP_HID' with DEPTH hidden"
                "layers of WIDTH units, DROP_IN input dropout and DROP_HID"
@@ -282,6 +292,8 @@ def input_parser():
                    default='raw')
     h_outputdir = 'Fullpath of folder to save model'
     p.add_argument('-od', '--output_dir', help=h_outputdir, default='')
+    h_debug = 'Report extra metrics on training set after every epoch'
+    p.add_argument('-dg', '--debug', action='store_true', help=h_debug)
     return p
 
 
