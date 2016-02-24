@@ -302,15 +302,13 @@ def c3d_batch_feature_stacking(df, dirname, t_size=16, t_stride=8,
 
 
 # General utilities
-def balance_labels(Y, batch_size=1):
+def balance_labels(Y):
     """Compute weights to balance distribution btw 1/0
 
     Parameters
     ----------
     Y : ndarray
         Binary Label matrix or vector {0, 1}.
-    batch_size : int, optional
-        mini-batch size
 
     Outputs
     -------
@@ -320,8 +318,8 @@ def balance_labels(Y, batch_size=1):
         Weight for samples labeled as 0
 
     """
-    w_pos = Y.sum() * 1.0 / batch_size
-    w_neg = Y.size * 1.0 / batch_size - w_pos
+    w_pos = Y.sum() * 1.0
+    w_neg = Y.size * 1.0 - w_pos
 
     if w_pos > w_neg:
         w_neg, w_pos = 1.0, w_neg / w_pos
