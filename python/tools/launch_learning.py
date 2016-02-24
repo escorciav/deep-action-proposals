@@ -33,8 +33,8 @@ def set_model(model_type, num_proposal=None, depth=None, width=None,
 
 
 def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
-         n_epoch, l_rate, alpha, init_model, opt_rule, opt_prm,
-         id_fmt, id_offset, model_type, gpu, snapshot_freq,
+         batch_size, n_epoch, l_rate, w_pos, alpha, init_model, opt_rule,
+         opt_prm, id_fmt, id_offset, model_type, gpu, snapshot_freq,
          output_dir, ds_prefix, ds_suffix, idle_time, debug, verbose):
     # Set dir for logs, snapshots, etc.
     if output_dir is None:
@@ -66,7 +66,7 @@ def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
     opt_id = [i for i, v in enumerate(OPT_CHOICES) if v in opt_rule]
     # Cartesian product
     prm = np.vstack(map(lambda x: x.flatten(),
-                        np.meshgrid(l_rate, alpha, depth, width, opt_id,
+                        np.meshgrid(l_rate, alpha, depth, width, opt_id, w_pos,
                                     indexing='ij')))
 
     # Launch process
@@ -78,9 +78,9 @@ def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
         cmd = (['python', 'python/learning.py', '-id', exp_id, '-m', model,
                 '-a', str(prm[1, i]), '-ne', str(n_epoch), '-od', output_dir,
                 '-lr', str(prm[0, i]), '-dp', ds_prefix, '-ds', ds_suffix,
-                '-sf', str(snapshot_freq), '-om',
-                OPT_CHOICES[prm[4, i].astype(int)]] + include_init_model +
-               opt_prm + debug_mode)
+                '-sf', str(snapshot_freq), '-bz', str(batch_size), '-w+',
+                str(prm[5, i]), '-om', OPT_CHOICES[prm[4, i].astype(int)]] +
+               include_init_model + opt_prm + debug_mode)
         if verbose:
             print cmd
         pid_pool[exp_id] = Popen(cmd, env=env_vars)
@@ -115,10 +115,14 @@ if __name__ == '__main__':
     p.add_argument('-dout', '--drop_out', default=0.5, help='Dropout hidden')
     p.add_argument('-ne', '--n_epoch', default=200, type=int,
                    help='Num epochs')
+    p.add_argument('-bz', '--batch_size', default=500, type=int,
+                   help='Mini batch size')
     p.add_argument('-lr', '--l_rate', default=L_RATE, nargs='+', type=float,
                    help='List of learning rate values')
     p.add_argument('-a', '--alpha', default=ALPHA, nargs='+', type=float,
                    help='List of alpha values')
+    p.add_argument('-w+', '--w_pos', default=1.0, nargs='+', type=float,
+                   help='Weigth for positive samples on loss function')
     p.add_argument('-or', '--opt_rule', nargs='+', default='sgd',
                    choices=OPT_CHOICES, help='Optimization method')
     p.add_argument('-op', '--opt_prm', default=None,

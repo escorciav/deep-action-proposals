@@ -178,10 +178,11 @@ def report_metrics(y_dset, y_pred, batch_size, dset='Val'):
 
 # ############################## Main program #################################
 
-def main(exp_id='0', model='', num_epochs=500, alpha=0.3, batch_size=500,
-         l_rate=0.01, grad_clip=100, rng_seed=None, init_model=None,
-         output_dir='', ds_prefix=None, ds_suffix=None, snapshot_freq=125,
-         opt_rule=None, opt_prm=None, debug=False, **kwargs):
+def main(exp_id='0', model='', num_epochs=500, alpha=0.3, w_pos=1.0,
+         batch_size=500, l_rate=0.01, grad_clip=100, rng_seed=None,
+         init_model=None, output_dir='', ds_prefix=None, ds_suffix=None,
+         snapshot_freq=125, opt_rule=None, opt_prm=None, debug=False,
+         **kwargs):
     if opt_prm is None:
         opt_prm = {}
 
@@ -198,7 +199,7 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, batch_size=500,
     priors, X_train, y_train, X_val, y_val = load_dataset(ds_prefix, ds_suffix)
     feat_dim = X_train.shape[-1]
     wc_train, wc_val = balance_labels(y_train), balance_labels(y_val)
-    w1 = (wc_train[0], wc_val[0])
+    w1 = (w_pos * wc_train[0], w_pos * wc_val[0])
     w0 = (wc_train[1], wc_val[1])
     logging.info("Data loaded successfully")
 
@@ -300,7 +301,11 @@ def input_parser():
                "is the number of LSTM layers.")
     p.add_argument('-m', '--model', help=h_model)
     h_alpha = 'trade-off between matching and confidence loss'
+    p.add_argument('-bz', '--batch_size', default=500, type=int,
+                   help='Mini batch size')
     p.add_argument('-a', '--alpha', help=h_alpha, default=0.3, type=float)
+    p.add_argument('-w+', '--w_pos', default=1.0, type=float,
+                   help='Weigth for positive samples on loss function')
     h_epochs = 'number of training epochs to perform'
     p.add_argument('-ne', '--num_epochs', help=h_epochs, default=500, type=int)
     h_lrate = 'Initial learning rate'
