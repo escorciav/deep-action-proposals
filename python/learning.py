@@ -56,15 +56,16 @@ def iterate_minibatches(inputs, targets, batchsize, shuffle=False):
 # #############################################################################
 
 def dump_hyperprm(prmfile, exp_id, model, num_epochs, alpha, batch_size,
-                  l_rate, grad_clip, rng_seed, init_model, output_dir, val_ap,
-                  rec_50):
+                  l_rate, grad_clip, rng_seed, init_model, output_dir,
+                  opt_rule, val_ap, rec_50):
     logging.info("Serializing hyper-parameters ...")
     with open(prmfile, 'w') as f:
         json.dump({'exp_id': exp_id, 'model': model, 'num_epochs': num_epochs,
                    'alpha': alpha, 'batch_size': batch_size, 'l_rate': l_rate,
                    'rng_seed': rng_seed, 'init_model': init_model,
-                   'grad_clip': grad_clip, 'output_dir': output_dir,
-                   'val_ap': float(val_ap), 'rec_50': float(rec_50)},
+                   'opt_method': opt_rule, 'grad_clip': grad_clip,
+                   'output_dir': output_dir, 'val_ap': float(val_ap),
+                   'rec_50': float(rec_50)},
                   f, indent=4, separators=(',', ': '))
     logging.info("Hpyer-parameters saved on " + prmfile)
 
@@ -75,16 +76,81 @@ def dump_model(filename, network):
     logging.info("Model saved on " + filename)
 
 
-def forward_pass(fn, X, y, priors, batch_size, shuffle=False):
+def forward_pass(fn, X, y, batch_size, shuffle=False):
     # Helper function to perform forward_pass over a dataset
     err, n_batches, pred = 0, 0, []
     for batch in iterate_minibatches(X, y, batch_size, shuffle=shuffle):
         inputs, targets = batch
-        outputs = fn(inputs, priors, targets)
+        outputs = fn(inputs, targets)
         err += outputs[0]
         pred.append(outputs[1])
         n_batches += 1
     return err, n_batches, np.vstack(pred)
+
+
+def optimization(network, input_var, priors, alpha, w1, w0,
+                 opt_method=None, opt_prm=None):
+    # Define optimization problem and functions to perform training and
+    # validation
+    if opt_prm is None:
+        opt_prm = {}
+
+    w1_train, w1_val = w1
+    w0_train, w0_val = w0
+
+    target_conf_var = T.imatrix('targets_conf')
+    target_loc_var = T.as_tensor_variable(priors, name='targets_loc')
+    w1_train_var, w0_train_var = T.constant(w1_train), T.constant(w0_train)
+    w1_val_var, w0_val_var = T.constant(w1_val), T.constant(w0_val)
+
+    # Loss expression for training, i.e., a scalar objective we want to
+    # minimize:
+    loc, conf = lasagne.layers.get_output(network)
+    loss_match = lasagne.objectives.squared_error(loc, target_loc_var)
+    loss_conf = weigthed_binary_crossentropy(conf, target_conf_var,
+                                             w0_train_var, w1_train_var)
+    loss = alpha * loss_match.mean() + loss_conf.mean()
+
+    # We could add some weight decay as well here, see lasagne.regularization.
+    params = lasagne.layers.get_all_params(network, trainable=True)
+    updates = opt_method(loss, params, **opt_prm)
+
+    # The crucial difference here is that we do a deterministic forward pass
+    # through the network, disabling dropout layers.
+    test_prediction = lasagne.layers.get_output(network, deterministic=True)
+    test_loc, test_conf = test_prediction
+    test_loss_match = lasagne.objectives.squared_error(test_loc,
+                                                       target_loc_var)
+    test_loss_conf = weigthed_binary_crossentropy(test_conf, target_conf_var,
+                                                  w0_val_var, w1_val_var)
+    test_loss = alpha * test_loss_match.mean() + test_loss_conf.mean()
+
+    # Compile a function performing a training step on a mini-batch (by giving
+    # the updates dictionary) and returning the corresponding training loss:
+    train_fn = theano.function([input_var, target_conf_var],
+                               loss, updates=updates,
+                               allow_input_downcast=True)
+
+    # Compile a second function computing the validation loss and accuracy:
+    val_fn = theano.function([input_var, target_conf_var],
+                             [test_loss, test_conf],
+                             allow_input_downcast=True)
+
+    return train_fn, val_fn
+
+
+def optimization_method(method, opt_prm, l_rate):
+    # Parse update rule
+    opt_prm['learning_rate'] = l_rate
+    method = method.lower()
+    if method == 'rmsprop':
+        return lasagne.updates.rmsprop
+    elif method == 'adam':
+        return lasagne.updates.adam
+    elif method == 'adagrad':
+        return lasagne.updates.adagrad
+    else:
+        return lasagne.updates.nesterov_momentum
 
 
 def report_metrics(y_dset, y_pred, batch_size, dset='Val'):
@@ -115,7 +181,10 @@ def report_metrics(y_dset, y_pred, batch_size, dset='Val'):
 def main(exp_id='0', model='', num_epochs=500, alpha=0.3, batch_size=500,
          l_rate=0.01, grad_clip=100, rng_seed=None, init_model=None,
          output_dir='', ds_prefix=None, ds_suffix=None, snapshot_freq=125,
-         debug=False, **kwargs):
+         opt_rule=None, opt_prm=None, debug=False, **kwargs):
+    if opt_prm is None:
+        opt_prm = {}
+
     # Setup logging
     output_dir = os.path.join(output_dir, exp_id)
     if not os.path.exists(output_dir):
@@ -128,8 +197,9 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, batch_size=500,
     logging.info("Loading data")
     priors, X_train, y_train, X_val, y_val = load_dataset(ds_prefix, ds_suffix)
     feat_dim = X_train.shape[-1]
-    w1_train, w0_train = balance_labels(y_train, batch_size)
-    w1_val, w0_val = balance_labels(y_val, batch_size)
+    wc_train, wc_val = balance_labels(y_train), balance_labels(y_val)
+    w1 = (wc_train[0], wc_val[0])
+    w0 = (wc_train[1], wc_val[1])
     logging.info("Data loaded successfully")
 
     # Prepare Theano variables for inputs and targets
@@ -140,49 +210,14 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, batch_size=500,
     else:
         msg = 'Unexpected n-dim for X_train: {}'
         raise ValueError(msg.format(X_train.ndim))
-    target_loc_var = T.vector('targets_loc')
-    target_conf_var = T.imatrix('targets_conf')
-    w1_train_var, w0_train_var = T.constant(w1_train), T.constant(w0_train)
-    w1_val_var, w0_val_var = T.constant(w1_val), T.constant(w0_val)
 
-    # Create neural network model
+    # Instantiate model and optimazation problem
+    opt_method = optimization_method(opt_rule, opt_prm, l_rate)
     logging.info("Building model and compiling functions...")
     network = build_model(model, input_var, input_size=feat_dim,
                           grad_clip=grad_clip)
-
-    # Loss expression for training, i.e., a scalar objective we want to
-    # minimize:
-    loc, conf = lasagne.layers.get_output(network)
-    loss_match = lasagne.objectives.squared_error(loc, target_loc_var)
-    loss_conf = weigthed_binary_crossentropy(conf, target_conf_var,
-                                             w0_train_var, w1_train_var)
-    loss = alpha * loss_match.mean() + loss_conf.mean()
-    # We could add some weight decay as well here, see lasagne.regularization.
-
-    params = lasagne.layers.get_all_params(network, trainable=True)
-    updates = lasagne.updates.nesterov_momentum(
-            loss, params, learning_rate=l_rate, momentum=0.9)
-
-    # The crucial difference here is that we do a deterministic forward pass
-    # through the network, disabling dropout layers.
-    test_prediction = lasagne.layers.get_output(network, deterministic=True)
-    test_loc, test_conf = test_prediction
-    test_loss_match = lasagne.objectives.squared_error(test_loc,
-                                                       target_loc_var)
-    test_loss_conf = weigthed_binary_crossentropy(test_conf, target_conf_var,
-                                                  w0_val_var, w1_val_var)
-    test_loss = alpha * test_loss_match.mean() + test_loss_conf.mean()
-
-    # Compile a function performing a training step on a mini-batch (by giving
-    # the updates dictionary) and returning the corresponding training loss:
-    train_fn = theano.function([input_var, target_loc_var, target_conf_var],
-                               loss, updates=updates,
-                               allow_input_downcast=True)
-
-    # Compile a second function computing the validation loss and accuracy:
-    val_fn = theano.function([input_var, target_loc_var, target_conf_var],
-                             [test_loss, test_conf],
-                             allow_input_downcast=True)
+    train_fn, val_fn = optimization(network, input_var, priors, alpha,
+                                    w1, w0, opt_method, opt_prm)
 
     # Initialize model from previous file
     if init_model and len(init_model) == 2:
@@ -202,7 +237,8 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, batch_size=500,
     # Initial hyper-parameters values
     prmfile = os.path.join(output_dir, 'hyper_prm.json')
     dump_hyperprm(prmfile, exp_id, model, num_epochs, alpha, batch_size,
-                  l_rate, grad_clip, rng_seed, init_model, output_dir, 0, 0)
+                  l_rate, grad_clip, rng_seed, init_model, output_dir,
+                  opt_rule, 0, 0)
 
     # Finally, launch the training loop.
     logging.info("Starting training...")
@@ -215,19 +251,19 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, batch_size=500,
                                          shuffle=False):
             inputs, targets = batch
             # priors can be a T.constants vector
-            train_err += train_fn(inputs, priors, targets)
+            train_err += train_fn(inputs, targets)
             train_batches += 1
 
         # and a full pass over the validation data
         val_err, val_batches, val_pred = forward_pass(val_fn, X_val, y_val,
-                                                      priors, batch_size)
+                                                      batch_size)
 
         # Then we print the results for this epoch
         logging.info("Epoch {}".format(epoch_0 + epoch + 1))
         logging.info("Elapsed time {:.3f}".format(time.time() - start_time))
         logging.info("Train-loss {:.6f}".format(train_err / train_batches))
         if debug:
-            _, _, train_pred = forward_pass(val_fn, X_train, y_train, priors,
+            _, _, train_pred = forward_pass(val_fn, X_train, y_train,
                                             batch_size)
             report_metrics(y_train, train_pred, batch_size, 'Train')
         logging.info("Val-loss {:.6f}".format(val_err / val_batches))
@@ -245,8 +281,8 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, batch_size=500,
     dump_model(modelfile, network)
     prmfile = os.path.join(output_dir, 'hyper_prm.json')
     dump_hyperprm(prmfile, exp_id, model, num_epochs, alpha, batch_size,
-                  l_rate, grad_clip, rng_seed, init_model, output_dir, val_ap,
-                  rec50)
+                  l_rate, grad_clip, rng_seed, init_model, output_dir,
+                  opt_rule, val_ap, rec50)
 
 
 def input_parser():
@@ -267,11 +303,15 @@ def input_parser():
     p.add_argument('-a', '--alpha', help=h_alpha, default=0.3, type=float)
     h_epochs = 'number of training epochs to perform'
     p.add_argument('-ne', '--num_epochs', help=h_epochs, default=500, type=int)
-    h_lrate = 'Learning rate'
+    h_lrate = 'Initial learning rate'
     p.add_argument('-lr', '--l_rate', help=h_lrate, default=0.01, type=float)
     h_gradclip = 'Gradient clipping'
     p.add_argument('-gc', '--grad_clip', help=h_gradclip, default=100,
                    type=float)
+    p.add_argument('-om', '--opt_rule', default='rmsprop',
+                   help='Method for update rule')
+    p.add_argument('-op', '--opt_prm', default=None, type=json.load,
+                   help='Parameters of optimization rule')
     h_rngseed = 'Seed for random number generation'
     p.add_argument('-rng', '--rng_seed', help=h_rngseed, default=None,
                    type=int)

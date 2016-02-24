@@ -15,6 +15,7 @@ OUTPUT_DIR = 'data/experiments/thumos14/a01'
 L_RATE = [1e-2, 1e-3, 1e-4, 1e-5]
 ALPHA = [1e-6, 5e-2, 1e-1, 0.3]
 MODEL_CHOICES = ['lstm', 'mlp']
+OPT_CHOICES = ['rmsprop', 'adam', 'adagrad', 'sgd']
 
 
 def set_model(model_type, num_proposal=None, depth=None, width=None,
@@ -32,7 +33,7 @@ def set_model(model_type, num_proposal=None, depth=None, width=None,
 
 
 def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
-         n_epoch, l_rate, alpha, init_model,
+         n_epoch, l_rate, alpha, init_model, opt_rule, opt_prm,
          id_fmt, id_offset, model_type, gpu, snapshot_freq,
          output_dir, ds_prefix, ds_suffix, idle_time, debug, verbose):
     # Set dir for logs, snapshots, etc.
@@ -47,18 +48,25 @@ def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
     env_vars = os.environ
     env_vars['THEANO_FLAGS'] = dev_flags
 
+    # Opt parameter
+    opt_prm = []
+    if opt_prm:
+        opt_prm = ['-op', opt_prm]
+
     # Include init_model to reinitialize
     include_init_model = []
     if init_model:
         include_init_model = ['-i', str(init_model[0]), str(init_model[1])]
 
+    # Debug mode
     debug_mode = []
     if debug:
         debug_mode = ['-dg']
 
+    opt_id = [i for i, v in enumerate(OPT_CHOICES) if v in opt_rule]
     # Cartesian product
     prm = np.vstack(map(lambda x: x.flatten(),
-                        np.meshgrid(l_rate, alpha, depth, width,
+                        np.meshgrid(l_rate, alpha, depth, width, opt_id,
                                     indexing='ij')))
 
     # Launch process
@@ -67,10 +75,12 @@ def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
         exp_id = id_fmt.format(i + id_offset)
         model = set_model(model_type, num_proposal, prm[2, i], prm[3, i],
                           seq_length, drop_in, drop_out)
-        cmd = ['python', 'python/learning.py', '-id', exp_id, '-m', model,
-               '-a', str(prm[1, i]), '-ne', str(n_epoch), '-od', output_dir,
-               '-lr', str(prm[0, i]), '-dp', ds_prefix, '-ds', ds_suffix,
-               '-sf', str(snapshot_freq)] + include_init_model + debug_mode
+        cmd = (['python', 'python/learning.py', '-id', exp_id, '-m', model,
+                '-a', str(prm[1, i]), '-ne', str(n_epoch), '-od', output_dir,
+                '-lr', str(prm[0, i]), '-dp', ds_prefix, '-ds', ds_suffix,
+                '-sf', str(snapshot_freq), '-om',
+                OPT_CHOICES[prm[4, i].astype(int)]] + include_init_model +
+               opt_prm + debug_mode)
         if verbose:
             print cmd
         pid_pool[exp_id] = Popen(cmd, env=env_vars)
@@ -109,6 +119,10 @@ if __name__ == '__main__':
                    help='List of learning rate values')
     p.add_argument('-a', '--alpha', default=ALPHA, nargs='+', type=float,
                    help='List of alpha values')
+    p.add_argument('-or', '--opt_rule', nargs='+', default='sgd',
+                   choices=OPT_CHOICES, help='Optimization method')
+    p.add_argument('-op', '--opt_prm', default=None,
+                   help='Parameters of optimization method')
     h_initmodel = ('Pair of model-path, epoch to restart learning from this '
                    'point')
     p.add_argument('-i', '--init_model', nargs=2, default=None,
