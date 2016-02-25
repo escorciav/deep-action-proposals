@@ -76,8 +76,8 @@ def set_model(model_type, num_proposal=None, depth=None, width=None,
 
 
 def main(id_fmt, id_offset, model_type, num_proposal, depth, width,
-         seq_length, drop_in, drop_out, batch_size, n_epoch, l_rate,
-         w_pos, alpha, opt_rule, opt_prm, rng_seed, init_model,
+         seq_length, drop_in, drop_out, grad_clip, batch_size, n_epoch, l_rate,
+         w_pos, alpha, opt_rule, opt_prm, rng_seed, init_model, shuffle,
          snapshot_freq, output_dir, ds_prefix, ds_suffix, debug,
          gpu, serial_jobs, idle_time, verbose):
     # Set dir for logs, snapshots, etc.
@@ -93,6 +93,11 @@ def main(id_fmt, id_offset, model_type, num_proposal, depth, width,
     rng_prm = []
     if rng_seed:
         rng_prm = ['-rng', str(rng_seed)]
+
+    # Shuffling
+    shuffle_prm = []
+    if shuffle:
+        shuffle_prm = ['-sh']
 
     # Include init_model to reinitialize
     include_init_model = []
@@ -120,8 +125,9 @@ def main(id_fmt, id_offset, model_type, num_proposal, depth, width,
                 '-a', str(prm[1, i]), '-ne', str(n_epoch), '-od', output_dir,
                 '-lr', str(prm[0, i]), '-dp', ds_prefix, '-ds', ds_suffix,
                 '-sf', str(snapshot_freq), '-bz', str(batch_size), '-w+',
-                str(prm[5, i]), '-om', OPT_CHOICES[prm[4, i].astype(int)]] +
-               include_init_model + opt_prm + rng_prm + debug_mode)
+                str(prm[5, i]), '-om', OPT_CHOICES[prm[4, i].astype(int)],
+                '-gc', str(grad_clip)] + include_init_model + opt_prm +
+               rng_prm + debug_mode + shuffle_prm)
         pid_pool[exp_id] = [cmd, None]
 
     launch_jobs(pid_pool, serial_jobs, gpu, verbose, idle_time)
@@ -145,6 +151,8 @@ if __name__ == '__main__':
                    help='Num epochs')
     p.add_argument('-bz', '--batch_size', default=500, type=int,
                    help='Mini batch size')
+    p.add_argument('-gc', '--grad_clip', default=100, type=float,
+                   help='Gradient clipping')
     p.add_argument('-lr', '--l_rate', default=L_RATE, nargs='+', type=float,
                    help='List of learning rate values')
     p.add_argument('-a', '--alpha', default=ALPHA, nargs='+', type=float,
@@ -161,6 +169,8 @@ if __name__ == '__main__':
                    help='Seed random number generator')
     p.add_argument('-i', '--init_model', nargs=2, default=None,
                    help=h_initmodel)
+    p.add_argument('-sh', '--shuffle', action='store_true',
+                   help='Shuffle data samples at every iteration')
     p.add_argument('-sf', '--snapshot_freq', default=60, type=int,
                    help='Frequency of snapshots')
     p.add_argument('-if', '--id_fmt', default='{:03d}', help='Exp ID format')

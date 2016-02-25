@@ -180,11 +180,13 @@ def report_metrics(y_dset, y_pred, batch_size, dset='Val'):
 
 def main(exp_id='0', model='', num_epochs=500, alpha=0.3, w_pos=1.0,
          batch_size=500, l_rate=0.01, grad_clip=100, rng_seed=None,
-         init_model=None, output_dir='', ds_prefix=None, ds_suffix=None,
-         snapshot_freq=125, opt_rule=None, opt_prm=None, debug=False,
-         **kwargs):
+         init_model=None, shuffle=False, output_dir='', ds_prefix=None,
+         ds_suffix=None, snapshot_freq=125, opt_rule=None, opt_prm=None,
+         debug=False, **kwargs):
     if opt_prm is None:
         opt_prm = {}
+    if rng_seed:
+        lasagne.random.set_rng(np.random.RandomState(rng_seed))
 
     # Setup logging
     output_dir = os.path.join(output_dir, exp_id)
@@ -249,7 +251,7 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, w_pos=1.0,
         start_time = time.time()
         train_err, train_batches = 0, 0
         for batch in iterate_minibatches(X_train, y_train, batch_size,
-                                         shuffle=False):
+                                         shuffle):
             inputs, targets = batch
             # priors can be a T.constants vector
             train_err += train_fn(inputs, targets)
@@ -257,7 +259,7 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, w_pos=1.0,
 
         # and a full pass over the validation data
         val_err, val_batches, val_pred = forward_pass(val_fn, X_val, y_val,
-                                                      batch_size)
+                                                      batch_size, shuffle)
 
         # Then we print the results for this epoch
         logging.info("Epoch {}".format(epoch_0 + epoch + 1))
@@ -265,7 +267,7 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, w_pos=1.0,
         logging.info("Train-loss {:.6f}".format(train_err / train_batches))
         if debug:
             _, _, train_pred = forward_pass(val_fn, X_train, y_train,
-                                            batch_size)
+                                            batch_size, shuffle)
             report_metrics(y_train, train_pred, batch_size, 'Train')
         logging.info("Val-loss {:.6f}".format(val_err / val_batches))
         val_ap, rec50 = report_metrics(y_val, val_pred, batch_size)
@@ -310,9 +312,8 @@ def input_parser():
     p.add_argument('-ne', '--num_epochs', help=h_epochs, default=500, type=int)
     h_lrate = 'Initial learning rate'
     p.add_argument('-lr', '--l_rate', help=h_lrate, default=0.01, type=float)
-    h_gradclip = 'Gradient clipping'
-    p.add_argument('-gc', '--grad_clip', help=h_gradclip, default=100,
-                   type=float)
+    p.add_argument('-gc', '--grad_clip', default=100, type=float,
+                   help='Gradient clipping')
     p.add_argument('-om', '--opt_rule', default='rmsprop',
                    help='Method for update rule')
     p.add_argument('-op', '--opt_prm', default=None, type=json.load,
@@ -327,6 +328,8 @@ def input_parser():
     h_dsprefix = 'Fullpath prefix for train/val dataset'
     p.add_argument('-sf', '--snapshot_freq', default=150, type=int,
                    help='Frequency of snapshots')
+    p.add_argument('-sh', '--shuffle', action='store_true',
+                   help='Shuffle data samples at every iteration')
     dflt_dsprefix = os.path.join(
         os.path.dirname(os.path.realpath(__file__)), '..', 'data',
         'experiments', 'thumos14', 'a01')
