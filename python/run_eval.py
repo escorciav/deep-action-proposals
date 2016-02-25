@@ -15,6 +15,7 @@ from utils import segment_format
 from utils import segment_iou
 from thumos14_helper import Thumos14
 
+
 def load_proposals(proposal_dir, stride=128, T=256,
                    file_filter=None, priors_filename=None):
     """Load proposal DataFrames from files.
@@ -47,6 +48,7 @@ def load_proposals(proposal_dir, stride=128, T=256,
         proposal_df.append(this_df)
     return pd.concat(proposal_df, axis=0)
 
+
 def filter_proposals(proposal_df):
     """Remove non-coherent proposals from DataFrame.
     """
@@ -56,22 +58,6 @@ def filter_proposals(proposal_df):
     proposal_df = proposal_df.loc[idx].reset_index(drop=True)
     return proposal_df
 
-def wrapper_compute_iou(proposal_df, df):
-    """Driver function for computing IoU for a batch of videos.
-    """
-    vds_unique = pd.unique(proposal_df['video-name'])
-    for v in vds_unique:
-        idx = proposal_df['video-name'] == v # Proposal pointer.
-        jdx = df['video-name'] == v # Annotation pointer.
-        this_df = proposal_df.loc[idx]
-        proposals = np.stack((this_df['f-init'], 
-                              this_df['f-end']), axis=-1)
-        ann_df = df.loc[jdx]
-        annotations = np.stack((ann_df['f-init'],
-                                ann_df['n-frames']), axis=-1)
-        annotations = segment_format(annotations, 'd2b')
-        score = segment_iou(annotations, proposals)
-        
 
 def wrapper_nms(proposal_df, overlap=0.65):
     """Apply non-max-suppresion to a video batch.
@@ -97,13 +83,15 @@ def wrapper_nms(proposal_df, overlap=0.65):
 
 def wrapper_retrieve_proposals(video_df, network, proposal_dir, T=256, 
                                stride=128, c3d_size=16, c3d_stride=8, 
-                               pool_type='mean', hdf5_dataset=None):
+                               pool_type='mean', hdf5_dataset=None,
+                               model_prm=None, verbose=True):
     """Retrieve proposals for a video batch and save them.
     """
+    cnt = 1
     for idx, video in video_df.iterrows():
         proposals, score = retrieve_proposals(
             video['video-name'], video['video-frames'], network, T, stride,
-            c3d_size, c3d_stride, pool_type, hdf5_dataset)
+            c3d_size, c3d_stride, pool_type, hdf5_dataset, model_prm)
 
         # Build proposal DataFrame.
         n_proposals = proposals.shape[0]
@@ -117,6 +105,11 @@ def wrapper_retrieve_proposals(video_df, network, proposal_dir, T=256,
         this_proposal_df.to_csv(out, sep=' ', index=False, 
                                 columns=['video-name', 'video-frames', 
                                          'f-init', 'f-end', 'score'])
+        if verbose:
+            print 'Processed video: {} - {}/{}'.format(video['video-name'],
+                                                       cnt, video.shape[0])
+            cnt += 1
+
 
 def input_parser():
     description = 'Evaluates a deep action proposal model.'
@@ -154,6 +147,7 @@ def input_parser():
     p.add_argument('-pr', '--priors_filename',
                    help='File with priors used in training.')
     return p
+
 
 def main(model, network_params, eval_id, exp_id, output_dir,
          input_size=4096, dataset='thumos14-val', feat_file=None, 
@@ -237,7 +231,8 @@ def main(model, network_params, eval_id, exp_id, output_dir,
         wrapper_retrieve_proposals(video_df, network, proposal_dir, T=T, 
                                    stride=stride,
                                    c3d_size=c3d_size, c3d_stride=c3d_stride,
-                                   pool_type=pool_type, hdf5_dataset=feat_file)
+                                   pool_type=pool_type, hdf5_dataset=feat_file,
+                                   model_prm=network_params['model'])
     
     ###########################################################################
     # Evaluate proposals
@@ -250,6 +245,7 @@ def main(model, network_params, eval_id, exp_id, output_dir,
     # Store results
     proposal_df.to_csv(result_filename, sep=' ', index=False)
     print 'Have a good day!'
+
 
 if __name__ == '__main__':
     p = input_parser()

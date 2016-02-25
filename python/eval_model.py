@@ -60,7 +60,7 @@ def nms_detections(dets, score, overlap=0.3):
 
 def retrieve_proposals(video_name, l_size, network, T=256, stride=128,
                        c3d_size=16, c3d_stride=8, pool_type='mean', 
-                       hdf5_dataset=None):
+                       hdf5_dataset=None, model_prm=None):
     """Retrieve proposals for an input video.
 
     Parameters
@@ -94,6 +94,13 @@ def retrieve_proposals(video_name, l_size, network, T=256, stride=128,
     f_init_array = np.arange(0, l_size - T, stride)
     feat_stack = fobj.read_feat_batch_from_video(video_name, f_init_array,
                                                  duration=T)
+    if model_prm.startswith('lstm:'):
+        user_prm = model_prm.split(':', 1)[1].split(',')
+        n_outputs, seq_length, width, depth = user_prm
+        feat_stack = feat_stack.reshape(feat_stack.shape[0],
+                                        int(seq_length),
+                                        feat_stack.shape[1]/int(seq_length))
+        
     # Close instance.
     fobj.close_instance()
 
@@ -102,10 +109,8 @@ def retrieve_proposals(video_name, l_size, network, T=256, stride=128,
     n_proposals = score.shape[1]
     n_segments = score.shape[0]
     score = score.flatten()
-    idx = score.argsort()[::-1]
-    score = score[idx]
     map_array = np.stack((f_init_array, 
                           np.zeros(n_segments))).repeat(n_proposals, axis=-1).T
-    proposal = segment_format(map_array + (loc[idx, :].clip(0, 1) * T),
+    proposal = segment_format(map_array + (loc.clip(0, 1) * T),
                               'c2b').astype(int)
     return proposal, score
