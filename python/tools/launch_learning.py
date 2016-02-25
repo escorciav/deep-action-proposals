@@ -34,7 +34,7 @@ def set_model(model_type, num_proposal=None, depth=None, width=None,
 
 def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
          batch_size, n_epoch, l_rate, w_pos, alpha, init_model, opt_rule,
-         opt_prm, id_fmt, id_offset, model_type, gpu, snapshot_freq,
+         opt_prm, rng_seed, id_fmt, id_offset, model_type, gpu, snapshot_freq,
          output_dir, ds_prefix, ds_suffix, idle_time, debug, verbose):
     # Set dir for logs, snapshots, etc.
     if output_dir is None:
@@ -52,6 +52,11 @@ def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
     opt_prm = []
     if opt_prm:
         opt_prm = ['-op', opt_prm]
+
+    # Seed for pseudo-random number generator
+    rng_prm = []
+    if rng_seed:
+        rng_prm = ['-rng', str(rng_seed)]
 
     # Include init_model to reinitialize
     include_init_model = []
@@ -80,7 +85,7 @@ def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
                 '-lr', str(prm[0, i]), '-dp', ds_prefix, '-ds', ds_suffix,
                 '-sf', str(snapshot_freq), '-bz', str(batch_size), '-w+',
                 str(prm[5, i]), '-om', OPT_CHOICES[prm[4, i].astype(int)]] +
-               include_init_model + opt_prm + debug_mode)
+               include_init_model + opt_prm + rng_prm + debug_mode)
         if verbose:
             print cmd
         pid_pool[exp_id] = Popen(cmd, env=env_vars)
@@ -129,6 +134,8 @@ if __name__ == '__main__':
                    help='Parameters of optimization method')
     h_initmodel = ('Pair of model-path, epoch to restart learning from this '
                    'point')
+    p.add_argument('-rng', '--rng_seed', default=None, type=int,
+                   help='Seed random number generator')
     p.add_argument('-i', '--init_model', nargs=2, default=None,
                    help=h_initmodel)
     p.add_argument('-sf', '--snapshot_freq', default=60, type=int,
