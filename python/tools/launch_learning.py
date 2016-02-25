@@ -18,6 +18,49 @@ MODEL_CHOICES = ['lstm', 'mlp']
 OPT_CHOICES = ['rmsprop', 'adam', 'adagrad', 'sgd']
 
 
+def launch_jobs(pid_pool, serial_jobs, gpu, verbose, idle_time):
+    # Launch jobs
+    env_vars = set_device(gpu)
+
+    for pid_name, pid_attb in pid_pool.iteritems():
+        if verbose:
+            print pid_attb[0]
+
+        pid_attb[1] = Popen(pid_attb[0], env=env_vars)
+
+        # Polling scheme serial jobs
+        if serial_jobs:
+            while pid_attb[1].poll() is None:
+                time.sleep(idle_time)
+
+            print 'ID {} finished'.format(pid_name)
+
+    # Polling scheme parallel jobs
+    while not serial_jobs:
+        pid_names = pid_pool.keys()
+        for pid in pid_names:
+            if pid_pool[pid][1].poll() is not None:
+                print 'ID {} finished'.format(pid)
+                pid_pool.pop(pid)
+
+        if len(pid_pool) == 0:
+            print 'All process finished. Bye!'
+            break
+        else:
+            time.sleep(idle_time)
+
+
+def set_device(gpu):
+    # Set device ID
+    if gpu >= 0:
+        dev_flags = 'device=gpu' + str(gpu)
+    else:
+        dev_flags = 'device=cpu'
+    env_vars = os.environ
+    env_vars['THEANO_FLAGS'] = dev_flags
+    return env_vars
+
+
 def set_model(model_type, num_proposal=None, depth=None, width=None,
               seq_length=None, drop_in=None, drop_out=None):
     # Set model string
@@ -32,21 +75,14 @@ def set_model(model_type, num_proposal=None, depth=None, width=None,
     return model
 
 
-def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
-         batch_size, n_epoch, l_rate, w_pos, alpha, init_model, opt_rule,
-         opt_prm, rng_seed, id_fmt, id_offset, model_type, gpu, snapshot_freq,
-         output_dir, ds_prefix, ds_suffix, idle_time, debug, verbose):
+def main(id_fmt, id_offset, model_type, num_proposal, depth, width,
+         seq_length, drop_in, drop_out, batch_size, n_epoch, l_rate,
+         w_pos, alpha, opt_rule, opt_prm, rng_seed, init_model,
+         snapshot_freq, output_dir, ds_prefix, ds_suffix, debug,
+         gpu, serial_jobs, idle_time, verbose):
     # Set dir for logs, snapshots, etc.
     if output_dir is None:
         output_dir = ds_prefix
-
-    # Set device ID
-    if gpu >= 0:
-        dev_flags = 'device=gpu' + str(gpu)
-    else:
-        dev_flags = 'device=cpu'
-    env_vars = os.environ
-    env_vars['THEANO_FLAGS'] = dev_flags
 
     # Opt parameter
     opt_prm = []
@@ -74,7 +110,7 @@ def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
                         np.meshgrid(l_rate, alpha, depth, width, opt_id, w_pos,
                                     indexing='ij')))
 
-    # Launch process
+    # Make cmd
     pid_pool = {}
     for i in range(prm.shape[1]):
         exp_id = id_fmt.format(i + id_offset)
@@ -86,23 +122,10 @@ def main(num_proposal, depth, width, seq_length, drop_in, drop_out,
                 '-sf', str(snapshot_freq), '-bz', str(batch_size), '-w+',
                 str(prm[5, i]), '-om', OPT_CHOICES[prm[4, i].astype(int)]] +
                include_init_model + opt_prm + rng_prm + debug_mode)
-        if verbose:
-            print cmd
-        pid_pool[exp_id] = Popen(cmd, env=env_vars)
+        pid_pool[exp_id] = [cmd, None]
 
-    # Polling
-    while True:
-        pid_names = pid_pool.keys()
-        for pid in pid_names:
-            if pid_pool[pid].poll() is not None:
-                print 'ID {} finished'.format(pid)
-                pid_pool.pop(pid)
-
-        if len(pid_pool) == 0:
-            print 'All process finished. Bye!'
-            break
-        else:
-            time.sleep(idle_time)
+    launch_jobs(pid_pool, serial_jobs, gpu, verbose, idle_time)
+    print "My job is done. Good luck with your results!"
 
 
 if __name__ == '__main__':
@@ -148,11 +171,13 @@ if __name__ == '__main__':
     p.add_argument('-ds', '--ds_suffix', type=str, default='mean')
     p.add_argument('-od', '--output_dir', default=None,
                    help='Folder to allocate experiment results')
+    p.add_argument('-dg', '--debug', action='store_true',
+                   help='Run learning.py on debug mode')
     p.add_argument('-g', '--gpu', default=0, type=int, help='Device ID')
+    p.add_argument('-sj', '--serial_jobs', action='store_true',
+                   help='Launch jobs serially')
     p.add_argument('-s', '--idle_time', default=60*5, type=int,
                    help='Idle time between polling stages')
-    p.add_argument('-dg', '--debug', action='store_true',
-                   help='Print cmd command to debug errors')
     p.add_argument('-v', '--verbose', action='store_true')
     args = p.parse_args()
     main(**vars(args))
