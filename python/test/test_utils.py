@@ -76,6 +76,30 @@ class test_general_utilities(unittest.TestCase):
         rst = np.array([1, 2])/np.sqrt(5)
         np.testing.assert_array_almost_equal(rst, py2_x[8:10])
 
+    def test_uniform_batches(self):
+        batch_size = 4
+        x = np.array([1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])
+        rst, rst_idx = utils.uniform_batches(x, batch_size)
+        self.assertEqual(x.size, rst.size)
+        self.assertEqual(rst_idx.size, rst_idx.size)
+        for i in range(x.size / batch_size):
+            mini_batch = rst[i * batch_size:(i + 1) * batch_size]
+            self.assertGreater(mini_batch.sum(), 0)
+
+        # Shrink
+        rst, rst_idx = utils.uniform_batches(x, batch_size, return_all=False)
+        self.assertGreater(x.size, rst.size)
+        self.assertEqual(rst.size, rst_idx.size)
+
+        # Not enough number of positives
+        y = np.hstack([x[:, np.newaxis], np.zeros((x.size, 1), dtype=int)])
+        batch_size = 2
+        rst, rst_idx = utils.uniform_batches(y, batch_size)
+        self.assertEqual(rst.shape[0], rst_idx.size)
+        for i in range(x.size / batch_size):
+            mini_batch = rst[i * batch_size:(i + 1) * batch_size]
+            self.assertGreater(mini_batch.sum(), 0)
+
 
 def test_count_frames():
     filename = 'not_existent_video.avi'

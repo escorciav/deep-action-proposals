@@ -463,6 +463,60 @@ def idx_of_queries(df, col_name, queries, n_samples=None, rng_seed=None):
         return rng.permutation(idx)[:n_samples]
 
 
+def uniform_batches(Y, batch_size=1, contiguous=True, return_all=True):
+    """Distribute positive labels as uniform as possible among mini batches
+
+    Parameters
+    ----------
+    Y : ndarray
+        Label vector or matrix with samples along the rows.
+    batch_size : int, optional
+        Size of mini-batches
+    contiguous : bool, optional
+        Enforce a contiguous array in the output
+    return_all : bool, optional
+        return all data samples.
+
+    Outputs
+    -------
+    Yt : ndarray
+        Re-organized label vector or matrix
+    idx : ndarray
+        indexes used to organize data
+
+    Notes
+    -----
+    This function is not tested on the case that negative labels are scarce.
+
+    """
+    if Y.ndim > 1:
+        pos_idx = np.where(Y.sum(axis=1) > 0)[0]
+    else:
+        pos_idx = np.where(Y > 0)[0]
+
+    n = Y.shape[0]
+    n_batches = n / batch_size
+    neg_idx = np.random.permutation(np.setdiff1d(np.arange(n), pos_idx))
+
+    # Replicate positives if batch size is too small compared to num positives
+    if n_batches > pos_idx.size:
+        pos_idx = np.tile(pos_idx, np.ceil(n_batches * 1.0 / pos_idx.size))
+    # Should not we do something similar with negative?
+
+    pos_groups = np.array_split(pos_idx, n_batches)
+    idx_list, j = [None] * n_batches, 0
+    for i, v in enumerate(pos_groups):
+        m = batch_size - v.size
+        idx_list[i] = np.random.permutation(np.hstack([v, neg_idx[j:j + m]]))
+        j += m
+    if j < neg_idx.size and return_all:
+        idx_list.append(neg_idx[j::])
+    idx = np.hstack(idx_list)
+    if contiguous:
+        return np.ascontiguousarray(Y[idx, ...]), idx
+    return Y[idx, ...], idx
+
+
 # Video utilities
 def count_frames(filename, method=None, ext='*.jpg'):
     """Count number of frames of a video
