@@ -77,8 +77,8 @@ def set_model(model_type, num_proposal=None, depth=None, width=None,
 
 def main(id_fmt, id_offset, model_type, num_proposal, depth, width,
          seq_length, drop_in, drop_out, grad_clip, batch_size, n_epoch, l_rate,
-         w_pos, alpha, opt_rule, opt_prm, rng_seed, init_model, shuffle,
-         snapshot_freq, output_dir, ds_prefix, ds_suffix, debug,
+         w_pos, alpha, beta, opt_rule, opt_prm, reg, rng_seed, init_model,
+         shuffle, snapshot_freq, output_dir, ds_prefix, ds_suffix, debug,
          gpu, serial_jobs, idle_time, verbose):
     # Set dir for logs, snapshots, etc.
     if output_dir is None:
@@ -113,7 +113,7 @@ def main(id_fmt, id_offset, model_type, num_proposal, depth, width,
     # Cartesian product
     prm = np.vstack(map(lambda x: x.flatten(),
                         np.meshgrid(l_rate, alpha, depth, width, opt_id, w_pos,
-                                    indexing='ij')))
+                                    beta, indexing='ij')))
 
     # Make cmd
     pid_pool = {}
@@ -126,8 +126,9 @@ def main(id_fmt, id_offset, model_type, num_proposal, depth, width,
                 '-lr', str(prm[0, i]), '-dp', ds_prefix, '-ds', ds_suffix,
                 '-sf', str(snapshot_freq), '-bz', str(batch_size), '-w+',
                 str(prm[5, i]), '-om', OPT_CHOICES[prm[4, i].astype(int)],
-                '-gc', str(grad_clip)] + include_init_model + opt_prm +
-               rng_prm + debug_mode + shuffle_prm)
+                '-gc', str(grad_clip), '-r', reg, '-b', str(prm[6, i])] +
+               include_init_model + opt_prm + rng_prm + debug_mode +
+               shuffle_prm)
         pid_pool[exp_id] = [cmd, None]
 
     launch_jobs(pid_pool, serial_jobs, gpu, verbose, idle_time)
@@ -157,12 +158,16 @@ if __name__ == '__main__':
                    help='List of learning rate values')
     p.add_argument('-a', '--alpha', default=ALPHA, nargs='+', type=float,
                    help='List of alpha values')
+    p.add_argument('-b', '--beta', default=0.0, nargs='+', type=float,
+                   help='Regularizer contribution')
     p.add_argument('-w+', '--w_pos', default=1.0, nargs='+', type=float,
                    help='Weigth for positive samples on loss function')
     p.add_argument('-or', '--opt_rule', nargs='+', default='sgd',
                    choices=OPT_CHOICES, help='Optimization method')
     p.add_argument('-op', '--opt_prm', default=None,
                    help='Parameters of optimization method')
+    p.add_argument('-r', '--reg', default='l2', choices=['l1', 'l2'],
+                   help='Type of regularizer penalty')
     h_initmodel = ('Pair of model-path, epoch to restart learning from this '
                    'point')
     p.add_argument('-rng', '--rng_seed', default=None, type=int,

@@ -55,13 +55,14 @@ def iterate_minibatches(inputs, targets, batchsize, shuffle=False):
 
 # #############################################################################
 
-def dump_hyperprm(prmfile, exp_id, model, num_epochs, alpha, batch_size,
-                  l_rate, grad_clip, rng_seed, init_model, output_dir,
-                  opt_rule, val_ap, rec_50):
+def dump_hyperprm(prmfile, exp_id, model, num_epochs, alpha, beta, w_pos,
+                  batch_size, l_rate, grad_clip, rng_seed, init_model,
+                  output_dir, opt_rule, reg, val_ap, rec_50):
     logging.info("Serializing hyper-parameters ...")
     with open(prmfile, 'w') as f:
         json.dump({'exp_id': exp_id, 'model': model, 'num_epochs': num_epochs,
-                   'alpha': alpha, 'batch_size': batch_size, 'l_rate': l_rate,
+                   'alpha': alpha, 'beta': beta, 'w_pos': w_pos,
+                   'penalty': reg, 'batch_size': batch_size, 'l_rate': l_rate,
                    'rng_seed': rng_seed, 'init_model': init_model,
                    'opt_method': opt_rule, 'grad_clip': grad_clip,
                    'output_dir': output_dir, 'val_ap': float(val_ap),
@@ -88,12 +89,18 @@ def forward_pass(fn, X, y, batch_size, shuffle=False):
     return err, n_batches, np.vstack(pred)
 
 
-def optimization(network, input_var, priors, alpha, w1, w0,
-                 opt_method=None, opt_prm=None):
+def optimization(network, input_var, priors, alpha, beta, w1, w0,
+                 reg='l2', opt_method=None, opt_prm=None):
     # Define optimization problem and functions to perform training and
     # validation
     if opt_prm is None:
         opt_prm = {}
+    if reg == 'l1':
+        penalty = lasagne.regularization.l1
+    elif reg == 'l2':
+        penalty = lasagne.regularization.l2
+    else:
+        raise ValueError('Unknown regularization scheme')
 
     w1_train, w1_val = w1
     w0_train, w0_val = w0
@@ -109,7 +116,9 @@ def optimization(network, input_var, priors, alpha, w1, w0,
     loss_match = lasagne.objectives.squared_error(loc, target_loc_var)
     loss_conf = weigthed_binary_crossentropy(conf, target_conf_var,
                                              w0_train_var, w1_train_var)
-    loss = alpha * loss_match.mean() + loss_conf.mean()
+    loss_reg = lasagne.regularization.regularize_network_params(network,
+                                                                penalty)
+    loss = alpha * loss_match.mean() + loss_conf.mean() + beta * loss_reg
 
     # We could add some weight decay as well here, see lasagne.regularization.
     params = lasagne.layers.get_all_params(network, trainable=True)
@@ -117,13 +126,14 @@ def optimization(network, input_var, priors, alpha, w1, w0,
 
     # The crucial difference here is that we do a deterministic forward pass
     # through the network, disabling dropout layers.
-    test_prediction = lasagne.layers.get_output(network, deterministic=True)
-    test_loc, test_conf = test_prediction
+    test_loc, test_conf = lasagne.layers.get_output(network,
+                                                    deterministic=True)
     test_loss_match = lasagne.objectives.squared_error(test_loc,
                                                        target_loc_var)
     test_loss_conf = weigthed_binary_crossentropy(test_conf, target_conf_var,
                                                   w0_val_var, w1_val_var)
-    test_loss = alpha * test_loss_match.mean() + test_loss_conf.mean()
+    test_loss = (alpha * test_loss_match.mean() + test_loss_conf.mean() +
+                 beta * loss_reg)
 
     # Compile a function performing a training step on a mini-batch (by giving
     # the updates dictionary) and returning the corresponding training loss:
@@ -178,8 +188,8 @@ def report_metrics(y_dset, y_pred, batch_size, dset='Val'):
 
 # ############################## Main program #################################
 
-def main(exp_id='0', model='', num_epochs=500, alpha=0.3, w_pos=1.0,
-         batch_size=500, l_rate=0.01, grad_clip=100, rng_seed=None,
+def main(exp_id='0', model='', num_epochs=500, alpha=0.3, beta=0, w_pos=1.0,
+         batch_size=500, l_rate=0.01, grad_clip=100, reg='l2', rng_seed=None,
          init_model=None, shuffle=False, output_dir='', ds_prefix=None,
          ds_suffix=None, snapshot_freq=125, opt_rule=None, opt_prm=None,
          debug=False, **kwargs):
@@ -220,7 +230,7 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, w_pos=1.0,
     network = build_model(model, input_var, input_size=feat_dim,
                           grad_clip=grad_clip)
     train_fn, val_fn = optimization(network, input_var, priors, alpha,
-                                    w1, w0, opt_method, opt_prm)
+                                    beta, w1, w0, reg, opt_method, opt_prm)
 
     # Initialize model from previous file
     if init_model and len(init_model) == 2:
@@ -239,9 +249,9 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, w_pos=1.0,
 
     # Initial hyper-parameters values
     prmfile = os.path.join(output_dir, 'hyper_prm.json')
-    dump_hyperprm(prmfile, exp_id, model, num_epochs, alpha, batch_size,
-                  l_rate, grad_clip, rng_seed, init_model, output_dir,
-                  opt_rule, 0, 0)
+    dump_hyperprm(prmfile, exp_id, model, num_epochs, alpha, beta, w_pos,
+                  batch_size, l_rate, grad_clip, rng_seed, init_model,
+                  output_dir, opt_rule, reg, 0, 0)
 
     # Finally, launch the training loop.
     logging.info("Starting training...")
@@ -283,9 +293,9 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, w_pos=1.0,
     modelfile = os.path.join(output_dir, 'model.npz')
     dump_model(modelfile, network)
     prmfile = os.path.join(output_dir, 'hyper_prm.json')
-    dump_hyperprm(prmfile, exp_id, model, num_epochs, alpha, batch_size,
-                  l_rate, grad_clip, rng_seed, init_model, output_dir,
-                  opt_rule, val_ap, rec50)
+    dump_hyperprm(prmfile, exp_id, model, num_epochs, alpha, beta, w_pos,
+                  batch_size, l_rate, grad_clip, rng_seed, init_model,
+                  output_dir, opt_rule, reg, val_ap, rec50)
 
 
 def input_parser():
@@ -306,6 +316,8 @@ def input_parser():
     p.add_argument('-bz', '--batch_size', default=500, type=int,
                    help='Mini batch size')
     p.add_argument('-a', '--alpha', help=h_alpha, default=0.3, type=float)
+    p.add_argument('-b', '--beta', default=0.0, type=float,
+                   help='Regularizer contribution')
     p.add_argument('-w+', '--w_pos', default=1.0, type=float,
                    help='Weigth for positive samples on loss function')
     h_epochs = 'number of training epochs to perform'
@@ -318,6 +330,8 @@ def input_parser():
                    help='Method for update rule')
     p.add_argument('-op', '--opt_prm', default=None, type=json.load,
                    help='Parameters of optimization rule')
+    p.add_argument('-r', '--reg', default='l2', choices=['l1', 'l2'],
+                   help='Type of regularizer penalty')
     h_rngseed = 'Seed for random number generation'
     p.add_argument('-rng', '--rng_seed', help=h_rngseed, default=None,
                    type=int)
