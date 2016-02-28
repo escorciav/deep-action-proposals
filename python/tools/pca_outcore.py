@@ -5,6 +5,7 @@ PCA done via matrix multiplication out-of-core. It is here just to be
 informative an argument parser is welcome.
 
 """
+import argparse
 import time
 
 import h5py
@@ -12,13 +13,11 @@ import hickle as hkl
 import numpy as np
 from joblib import delayed, Parallel
 
-THUMOS14_VAL = 'data/thumos14/c3d/val_c3d_temporal.hdf5'
 
-
-def main(h5file=THUMOS14_VAL, t_size=16, t_stride=8, source='c3d_features',
+def main(dsfile, pcafile, t_size=16, t_stride=8, source='c3d_features',
          n_jobs=1):
     print time.ctime(), 'start: loading hdf5'
-    fid = h5py.File(h5file, 'r')
+    fid = h5py.File(dsfile, 'r')
     video_names = fid.keys()
     print time.ctime(), 'finish: loading hdf5'
 
@@ -64,7 +63,20 @@ def main(h5file=THUMOS14_VAL, t_size=16, t_stride=8, source='c3d_features',
     print time.ctime(), 'finish: SVD in memory'
 
     print time.ctime(), 'serializing ...'
-    hkl.dump({'x_mean': x_mean, 'U': U, 'S': S}, 'pca_val_annot_thumos14.hkl')
+    hkl.dump({'x_mean': x_mean, 'U': U, 'S': S}, pcafile)
+
+
+def input_parse():
+    description = 'Compute PCA with A.T * A computation out of core'
+    p = argparse.ArgumentParser(description=description)
+    p.add_argument('dsfile', help='HDF5-file with features')
+    p.add_argument('pcafile', help='HDF5-file with PCA results')
+    p.add_argument('-n', '--n_jobs', default=1, type=int,
+                   help='Number of process for parallel out-of-core computations')
+    return p
+
 
 if __name__ == '__main__':
-    main()
+    p = input_parse()
+    args = p.parse_args()
+    main(**vars(args))
