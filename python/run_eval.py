@@ -6,13 +6,12 @@ import numpy as np
 import os
 import pandas as pd
 
-from c3d_feature_helper import Feature
 from model import build_model
 from model import read_model
 from eval_model import nms_detections
 from eval_model import retrieve_proposals
 from utils import segment_format
-from utils import segment_iou
+from activitynet_helper import ActivityNet
 from thumos14_helper import Thumos14
 
 
@@ -44,7 +43,7 @@ def load_proposals(proposal_dir, stride=128, T=256,
             proposals = segment_format(
                 map_array + (this_priors.clip(0, 1) * T), 'c2b').astype(int)
             this_df['f-init'] = proposals[:, 0]
-            this_df['f-end'] = proposals[: ,1]
+            this_df['f-end'] = proposals[:, 1]
         proposal_df.append(this_df)
     return pd.concat(proposal_df, axis=0)
 
@@ -66,7 +65,7 @@ def wrapper_nms(proposal_df, overlap=0.65):
     new_proposal_df = []
     for i, v in enumerate(vds_unique):
         idx = proposal_df['video-name'] == v
-        p = proposal_df.loc[idx, ['video-name', 'f-init', 'f-end', 
+        p = proposal_df.loc[idx, ['video-name', 'f-init', 'f-end',
                                   'score', 'video-frames']]
         n_frames = np.int(p['video-frames'].mean())
         loc = np.stack((p['f-init'], p['f-end']), axis=-1)
@@ -75,14 +74,14 @@ def wrapper_nms(proposal_df, overlap=0.65):
         n_frames = np.repeat(p['video-frames'].mean(), n_proposals).astype(int)
         this_df = pd.DataFrame({'video-name': np.repeat(v, n_proposals),
                                 'f-init': loc[:, 0], 'f-end': loc[:, 1],
-                                'score': score, 
+                                'score': score,
                                 'video-frames': n_frames})
         new_proposal_df.append(this_df)
     return pd.concat(new_proposal_df, axis=0)
-    
 
-def wrapper_retrieve_proposals(video_df, network, proposal_dir, T=256, 
-                               stride=128, c3d_size=16, c3d_stride=8, 
+
+def wrapper_retrieve_proposals(video_df, network, proposal_dir, T=256,
+                               stride=128, c3d_size=16, c3d_stride=8,
                                pool_type='mean', hdf5_dataset=None,
                                model_prm=None, verbose=True):
     """Retrieve proposals for a video batch and save them.
@@ -102,8 +101,8 @@ def wrapper_retrieve_proposals(video_df, network, proposal_dir, T=256,
              'score': score})
         out = os.path.join(proposal_dir,
                            '{}.proposals'.format(video['video-name']))
-        this_proposal_df.to_csv(out, sep=' ', index=False, 
-                                columns=['video-name', 'video-frames', 
+        this_proposal_df.to_csv(out, sep=' ', index=False,
+                                columns=['video-name', 'video-frames',
                                          'f-init', 'f-end', 'score'])
         if verbose:
             print 'Processed video: {} - {}/{}'.format(video['video-name'],
@@ -128,7 +127,7 @@ def input_parser():
                    help='Dataset ID: thumos14-val/test.')
     p.add_argument('-feat', '--feat_file',
                    help='hdf5 file containing the raw C3D features.')
-    p.add_argument('-ff', '--file_filter', 
+    p.add_argument('-ff', '--file_filter',
                    help='File containing a list of videos to be evaluated')
     p.add_argument('-ow', '--overwrite', type=bool, default=False,
                    help='Overwrite results.')
@@ -150,8 +149,8 @@ def input_parser():
 
 
 def main(model, network_params, eval_id, exp_id, output_dir,
-         input_size=4096, dataset='thumos14-val', feat_file=None, 
-         file_filter=None, overwrite=False, c3d_size=16, c3d_stride=8, 
+         input_size=4096, dataset='thumos14-val', feat_file=None,
+         file_filter=None, overwrite=False, c3d_size=16, c3d_stride=8,
          pool_type='mean', stride=128, T=256, nms=True, priors_filename=None):
 
     ###########################################################################
@@ -162,8 +161,10 @@ def main(model, network_params, eval_id, exp_id, output_dir,
     if dset_id == 'thumos14':
         th14 = Thumos14()
         df = th14.segments_info(subset)
+    elif dset_id == 'activitynet':
+        anv12 = ActivityNet()
+        df = anv12.segments_info(subset)
     else:
-        #TODO: ActivityNet parsing.
         raise ValueError('Dataset ID not known.')
     # Defining feature path.
     if not feat_file:
@@ -176,7 +177,7 @@ def main(model, network_params, eval_id, exp_id, output_dir,
         df = df[df['video-name'].isin(video_names)]
 
     ###########################################################################
-    # Set output file paths. 
+    # Set output file paths.
     ###########################################################################
     output_dir = os.path.join(output_dir, exp_id, 'eval', eval_id)
     if not os.path.isdir(output_dir):
@@ -198,7 +199,7 @@ def main(model, network_params, eval_id, exp_id, output_dir,
     if not os.path.isdir(results_dir):
         os.makedirs(results_dir)
 
-    ###########################################################################    
+    ###########################################################################
     # Loading network.
     ###########################################################################
     with open(network_params, 'r') as fobj:
@@ -224,21 +225,21 @@ def main(model, network_params, eval_id, exp_id, output_dir,
         else:
             video_frames.append(int(df.loc[idx, 'video-frames'].mean()))
             video_names.append(vds)
-    video_df = pd.DataFrame({'video-name': np.array(video_names), 
+    video_df = pd.DataFrame({'video-name': np.array(video_names),
                              'video-frames': np.array(video_frames)})
-    
-    if video_df.shape[0]: 
-        wrapper_retrieve_proposals(video_df, network, proposal_dir, T=T, 
+
+    if video_df.shape[0]:
+        wrapper_retrieve_proposals(video_df, network, proposal_dir, T=T,
                                    stride=stride,
                                    c3d_size=c3d_size, c3d_stride=c3d_stride,
                                    pool_type=pool_type, hdf5_dataset=feat_file,
                                    model_prm=network_params['model'])
-    
+
     ###########################################################################
     # Evaluate proposals
     ###########################################################################
     proposal_df = load_proposals(proposal_dir, stride=stride, T=T,
-                                 file_filter=file_filter, 
+                                 file_filter=file_filter,
                                  priors_filename=priors_filename)
     if nms:
         proposal_df = wrapper_nms(proposal_df)
