@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 """
 
-PCA done via matrix multiplication out-of-core. It is here just to be
-informative an argument parser is welcome.
+PCA done via matrix multiplication out-of-core.
 
 """
 import argparse
@@ -11,32 +10,22 @@ import time
 import h5py
 import hickle as hkl
 import numpy as np
-from joblib import delayed, Parallel
 
 
 def main(dsfile, pcafile, t_size=16, t_stride=8, source='c3d_features',
-         n_jobs=1):
+         log_loop=100):
     print time.ctime(), 'start: loading hdf5'
     fid = h5py.File(dsfile, 'r')
     video_names = fid.keys()
+    feat_dim = fid[video_names[0]][source].shape[1]
     print time.ctime(), 'finish: loading hdf5'
 
-    def compute_mean(chunk, f=fid, source=source):
-        feat_dim = f[chunk[0]][source].shape[1]
-        mean_c, n_c = np.zeros((1, feat_dim), dtype=np.float32), 0
-        for i in chunk:
-            feat_c = f[i][source][:]
-            n_c += feat_c.shape[0]
-            mean_c += feat_c.sum(axis=0)
-        return mean_c, n_c
-
     print time.ctime(), 'start: compute mean'
-    rst = Parallel(n_jobs=n_jobs)(delayed(compute_mean)(video_names[i::n_jobs])
-                                  for i in xrange(n_jobs))
-    x_mean, n = rst
-    for mean_c, n_c in rst[1::]:
-        x_mean += mean_c
-        n += n_c
+    x_mean, n = np.zeros((1, feat_dim), dtype=np.float32), 0
+    for i, v in fid.iteritems():
+        feat = v[source][:]
+        n += feat.shape[0]
+        x_mean += feat.sum(axis=0)
     x_mean /= n
     print time.ctime(), 'finish: compute mean'
 
@@ -50,11 +39,16 @@ def main(dsfile, pcafile, t_size=16, t_stride=8, source='c3d_features',
         return ATA_c
 
     print time.ctime(), 'start: out-of-core matrix multiplication'
-    rst = Parallel(n_jobs=n_jobs)(delayed(compute_ATA)(video_names[i::n_jobs])
-                                  for i in xrange(n_jobs))
-    ATA = rst[0]
-    for ATA_c in rst[1::]:
-        ATA += ATA_c
+    j, n_videos = 0, len(video_names)
+    ATA = np.zeros((feat_dim, feat_dim), dtype=np.float32)
+    for i, v in fid.iteritems():
+        feat = v[source][:]
+        feat_ = feat - x_mean
+        ATA += np.dot(feat_.T, feat_)
+        j += 1
+
+        if j % log_loop == 0:
+            print time.ctime(), 'Iteration {}/{}'.format(j, n_videos)
     print time.ctime(), 'finish: out-of-core matrix multiplication'
 
     # SVD
@@ -63,7 +57,7 @@ def main(dsfile, pcafile, t_size=16, t_stride=8, source='c3d_features',
     print time.ctime(), 'finish: SVD in memory'
 
     print time.ctime(), 'serializing ...'
-    hkl.dump({'x_mean': x_mean, 'U': U, 'S': S}, pcafile)
+    hkl.dump({'x_mean': x_mean, 'U': U, 'S': S, 'n_samples': n}, pcafile)
 
 
 def input_parse():
@@ -71,8 +65,8 @@ def input_parse():
     p = argparse.ArgumentParser(description=description)
     p.add_argument('dsfile', help='HDF5-file with features')
     p.add_argument('pcafile', help='HDF5-file with PCA results')
-    p.add_argument('-n', '--n_jobs', default=1, type=int,
-                   help='Number of process for parallel out-of-core computations')
+    p.add_argument('-ll', '--log_loop', default=500, type=int,
+                   help='Verbose in terms of number of videos')
     return p
 
 
