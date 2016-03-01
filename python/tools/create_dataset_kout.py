@@ -48,7 +48,7 @@ def input_parser():
                    help='Suffix format to append to dataset name')
     p.add_argument('-dset', '--dataset', default='thumos14-val',
                    help='Dataset ID: thumos14-val/test.')
-    p.add_argument('-ig', '--ignore_idx', nargs='+', default=[8, 15],
+    p.add_argument('-ig', '--ignore_idx', nargs='+', default=[8, 15], type=int,
                    help='idx of label to drop on validation')
     p.add_argument('output_dir', help='Fullpath of folder to place outputs')
     h_pooltype = 'Type of temporal stacking/pooling of C3D features'
@@ -129,8 +129,8 @@ def main(ref_file, conf_file, rootfile, exp_id, output_dir, suffix_fmt,
                                      return_reshaped=feat_2d)
             dset[i, ...] = feat
 
-            if verbose and i % vb_level == 0:
-                print 'Processed segments {}/{}'.format(i, idx_s.size)
+            if verbose and (i + 1) % vb_level == 0:
+                print 'Processed segments {}/{}'.format(i + 1, idx_s.size)
         f.close()
 
         # Dump label matrix
