@@ -18,19 +18,6 @@ def set_dataset_helper(dataset):
         return Thumos14()
 
 
-def main(ds_name, outprefix, n_proposals, T, iou_thr, i_thr, rng_seed):
-    ds_helper = set_dataset_helper(ds_name)
-    df_seg = ds_helper.segments_info()
-
-    # Generate segments for training and priors for regression
-    priors, df = compute_priors(df_seg, T, n_proposals, iou_thr=iou_thr,
-                                i_thr=i_thr, rng_seed=rng_seed)
-
-    # Save priors, segments, confidence/matching
-    dump_files(outprefix, priors=priors, df=df, conf=True)
-    return None
-
-
 def input_parse():
     description = ('Compute and Dump K activity priors/proposals for a length '
                    'T. It also saves sample segments of length T and match '
@@ -51,3 +38,21 @@ def input_parse():
     p.add_argument('-o', '--outprefix', default='mydata_256_16',
                    help='Prefix for output files')
     return p
+
+
+def main(ds_name, outprefix, n_proposals, T, iou_thr, i_thr, rng_seed):
+    ds_helper = set_dataset_helper(ds_name)
+    df_seg = ds_helper.segments_info()
+
+    # Generate segments for training and priors for regression
+    priors, df = compute_priors(df_seg, T, n_proposals, iou_thr=iou_thr,
+                                i_thr=i_thr, rng_seed=rng_seed)
+
+    # Save priors, segments, confidence/matching
+    dump_files(outprefix, priors=priors, df=df, conf=True)
+    return None
+
+
+if __name__ == '__main__':
+    p = input_parse()
+    main(**vars(p.parse_args()))

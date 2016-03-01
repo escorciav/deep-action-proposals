@@ -55,13 +55,13 @@ def input_parser():
     p.add_argument('-rng', '--rng_seed', default=None, type=int,
                    help='Integer seed for reproducibility')
     p.add_argument('-v', '--verbose', action='store_true')
-    p.add_argument('-vr', '--verbose_level', default=15, type=int,
+    p.add_argument('-vr', '--vb_level', default=100000, type=int,
                    help='Verbosity level as percentage')
     return p
 
 
 def main(ref_file, rootfile, output_dir, suffix_fmt, conf_file, train_ratio,
-         pool_type, feat_2d, shuffle, rng_seed, verbose, verbose_level):
+         pool_type, feat_2d, shuffle, rng_seed, verbose, vb_level):
     rng = np.random.RandomState(rng_seed)
     suffix = suffix_fmt.format(pool_type)
     dsset_name = output_file_validation(output_dir, ['train', 'val'], suffix)
@@ -79,6 +79,11 @@ def main(ref_file, rootfile, output_dir, suffix_fmt, conf_file, train_ratio,
 
     idx_train = df['video-name'].isin(video_names[idx_vid_train]).nonzero()[0]
     idx_val = df['video-name'].isin(video_names[idx_vid_val]).nonzero()[0]
+
+    # Dump videos on val set
+    vvalfile = os.path.join(output_dir, 'val_videos.txt')
+    val_videos = df.loc[idx_val, 'video-name'].drop_duplicates()
+    val_videos.to_csv(vvalfile, index=False, header=None)
 
     # Shuffling
     if shuffle:
@@ -119,8 +124,7 @@ def main(ref_file, rootfile, output_dir, suffix_fmt, conf_file, train_ratio,
                                      return_reshaped=feat_2d)
             dset[i, ...] = feat
 
-            pctg_it = int(max(i * 100 / idx_s.size, 1))
-            if verbose and pctg_it % verbose_level == 0:
+            if verbose and (i + 1) % vb_level == 0:
                 print 'Processed segments {}/{}'.format(i, idx_s.size)
         f.close()
 
