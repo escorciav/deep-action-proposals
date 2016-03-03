@@ -9,6 +9,7 @@ import numpy as np
 from utils import levenshtein_distance
 
 ACTIVITYNET_ANNOTATION_FILE = 'activity_net.v1-2.gt.json'
+OVERLAPPED_CATEGORY_IDS = [159, 82, 233, 224, 195, 116, 80, 106, 169]
 
 class ActivityNet(object):
     fields_video = ['video-name', 'duration', 'frame-rate', 'n-frames']
@@ -17,7 +18,8 @@ class ActivityNet(object):
                       'label-idx']
 
     def __init__(self, dirname='data/activitynet',
-                 annotation_file=ACTIVITYNET_ANNOTATION_FILE):
+                 annotation_file=ACTIVITYNET_ANNOTATION_FILE,
+                 overlapped_category_ids=OVERLAPPED_CATEGORY_IDS):
         """Initialize thumos14 class
 
         Parameters
@@ -31,7 +33,8 @@ class ActivityNet(object):
         self.root = dirname
         self.info = os.path.join(dirname, 'info')
         self.annotation_filename = os.path.join(self.info, annotation_file)
-
+        self.overlapped = overlapped_category_ids
+        
         # Read index used on ActivityNet
         self.index_filename = os.path.join(self.info,
                                            'class_index_detection.txt')
@@ -246,3 +249,6 @@ class ActivityNet(object):
         if df.shape[1] != len(self.fields_video):
             raise ValueError('Inconsistent number of columns')
         return df
+
+    def get_segments_from_overlapped_categories(self, df):
+        return df[df['label-idx'].isin(self.overlapped).copy()]
