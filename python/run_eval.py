@@ -15,6 +15,16 @@ from activitynet_helper import ActivityNet
 from thumos14_helper import Thumos14
 
 
+def filter_proposals(proposal_df):
+    """Remove non-coherent proposals from DataFrame.
+    """
+    neg_idx = proposal_df['f-init'] < 0
+    non_causal_idx = proposal_df['f-end'] <= proposal_df['f-init']
+    idx = ~(neg_idx | non_causal_idx)
+    proposal_df = proposal_df.loc[idx].reset_index(drop=True)
+    return proposal_df
+
+
 def load_proposals(proposal_dir, stride=128, T=256,
                    file_filter=None, priors_filename=None):
     """Load proposal DataFrames from files.
@@ -48,16 +58,6 @@ def load_proposals(proposal_dir, stride=128, T=256,
     return pd.concat(proposal_df, axis=0)
 
 
-def filter_proposals(proposal_df):
-    """Remove non-coherent proposals from DataFrame.
-    """
-    neg_idx = proposal_df['f-init'] < 0
-    non_causal_idx = proposal_df['f-end'] <= proposal_df['f-init']
-    idx = ~(neg_idx | non_causal_idx)
-    proposal_df = proposal_df.loc[idx].reset_index(drop=True)
-    return proposal_df
-
-
 def wrapper_nms(proposal_df, overlap=0.65):
     """Apply non-max-suppresion to a video batch.
     """
@@ -88,6 +88,9 @@ def wrapper_retrieve_proposals(video_df, network, proposal_dir, T=256,
     """
     cnt = 1
     for idx, video in video_df.iterrows():
+        if video['video-frames'] < T:
+            cnt += 1
+            continue
         proposals, score = retrieve_proposals(
             video['video-name'], video['video-frames'], network, T, stride,
             c3d_size, c3d_stride, pool_type, hdf5_dataset, model_prm)
