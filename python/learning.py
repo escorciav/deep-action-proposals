@@ -56,8 +56,8 @@ def iterate_minibatches(inputs, targets, batchsize, shuffle=False):
 # #############################################################################
 
 def dump_hyperprm(prmfile, exp_id, model, num_epochs, alpha, beta, w_pos,
-                  batch_size, l_rate, grad_clip, rng_seed, init_model,
-                  output_dir, opt_rule, reg, val_ap, rec_50):
+                  batch_size, l_rate, forget_bias, grad_clip, rng_seed,
+                  init_model, output_dir, opt_rule, reg, val_ap, rec_50):
     logging.info("Serializing hyper-parameters ...")
     with open(prmfile, 'w') as f:
         json.dump({'exp_id': exp_id, 'model': model, 'num_epochs': num_epochs,
@@ -65,8 +65,8 @@ def dump_hyperprm(prmfile, exp_id, model, num_epochs, alpha, beta, w_pos,
                    'penalty': reg, 'batch_size': batch_size, 'l_rate': l_rate,
                    'rng_seed': rng_seed, 'init_model': init_model,
                    'opt_method': opt_rule, 'grad_clip': grad_clip,
-                   'output_dir': output_dir, 'val_ap': float(val_ap),
-                   'rec_50': float(rec_50)},
+                   'forget_bias': forget_bias, 'output_dir': output_dir,
+                   'val_ap': float(val_ap), 'rec_50': float(rec_50)},
                   f, indent=4, separators=(',', ': '))
     logging.info("Hpyer-parameters saved on " + prmfile)
 
@@ -189,10 +189,10 @@ def report_metrics(y_dset, y_pred, batch_size, dset='Val'):
 # ############################## Main program #################################
 
 def main(exp_id='0', model='', num_epochs=500, alpha=0.3, beta=0, w_pos=1.0,
-         batch_size=500, l_rate=0.01, grad_clip=100, reg='l2', rng_seed=None,
-         init_model=None, shuffle=False, output_dir='', ds_prefix=None,
-         ds_suffix=None, snapshot_freq=125, opt_rule=None, opt_prm=None,
-         debug=False, **kwargs):
+         batch_size=500, l_rate=0.01, forget_bias=1.0, grad_clip=100, reg='l2',
+         rng_seed=None, init_model=None, shuffle=False, output_dir='',
+         ds_prefix=None, ds_suffix=None, snapshot_freq=125, opt_rule=None,
+         opt_prm=None, debug=False, **kwargs):
     if opt_prm is None:
         opt_prm = {}
     if rng_seed:
@@ -228,7 +228,7 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, beta=0, w_pos=1.0,
     opt_method = optimization_method(opt_rule, opt_prm, l_rate)
     logging.info("Building model and compiling functions...")
     network = build_model(model, input_var, input_size=feat_dim,
-                          grad_clip=grad_clip)
+                          grad_clip=grad_clip, forget_bias=forget_bias)
     train_fn, val_fn = optimization(network, input_var, priors, alpha,
                                     beta, w1, w0, reg, opt_method, opt_prm)
 
@@ -250,8 +250,8 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, beta=0, w_pos=1.0,
     # Initial hyper-parameters values
     prmfile = os.path.join(output_dir, 'hyper_prm.json')
     dump_hyperprm(prmfile, exp_id, model, num_epochs, alpha, beta, w_pos,
-                  batch_size, l_rate, grad_clip, rng_seed, init_model,
-                  output_dir, opt_rule, reg, 0, 0)
+                  batch_size, l_rate, forget_bias, grad_clip, rng_seed,
+                  init_model, output_dir, opt_rule, reg, 0, 0)
 
     # Finally, launch the training loop.
     logging.info("Starting training...")
@@ -294,8 +294,8 @@ def main(exp_id='0', model='', num_epochs=500, alpha=0.3, beta=0, w_pos=1.0,
     dump_model(modelfile, network)
     prmfile = os.path.join(output_dir, 'hyper_prm.json')
     dump_hyperprm(prmfile, exp_id, model, num_epochs, alpha, beta, w_pos,
-                  batch_size, l_rate, grad_clip, rng_seed, init_model,
-                  output_dir, opt_rule, reg, val_ap, rec50)
+                  batch_size, l_rate, forget_bias, grad_clip, rng_seed,
+                  init_model, output_dir, opt_rule, reg, val_ap, rec50)
 
 
 def input_parser():
@@ -324,6 +324,8 @@ def input_parser():
     p.add_argument('-ne', '--num_epochs', help=h_epochs, default=500, type=int)
     h_lrate = 'Initial learning rate'
     p.add_argument('-lr', '--l_rate', help=h_lrate, default=0.01, type=float)
+    p.add_argument('-fb', '--forget_bias', default=0, type=float,
+                   help='Set bias of forget gate on LSTM')
     p.add_argument('-gc', '--grad_clip', default=100, type=float,
                    help='Gradient clipping')
     p.add_argument('-om', '--opt_rule', default='rmsprop',

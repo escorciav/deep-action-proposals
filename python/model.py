@@ -6,7 +6,7 @@ EPSILON = 10e-8
 
 
 def build_lstm(input_var=None, seq_length=256, depth=2, width=512,
-               input_size=4096, grad_clip=100):
+               input_size=4096, grad_clip=100, forget_bias=5.0):
     """Create LSTM with `depth` number of hidden layers of size `units`
     """
     network = lasagne.layers.InputLayer(shape=(None, seq_length, input_size),
@@ -14,9 +14,11 @@ def build_lstm(input_var=None, seq_length=256, depth=2, width=512,
 
     # Hidden layers
     nonlin = lasagne.nonlinearities.tanh
+    gate = lasagne.layers.Gate
     for _ in range(depth):
         network = lasagne.layers.LSTMLayer(
-            network, width, grad_clipping=grad_clip, nonlinearity=nonlin)
+            network, width, grad_clipping=grad_clip, nonlinearity=nonlin,
+            forgetgate=gate(b=lasagne.init.Constant(forget_bias)))
 
     # Retain last-output state
     network = lasagne.layers.SliceLayer(network, -1, 1)
@@ -45,7 +47,7 @@ def build_mlp(input_var=None, depth=2, width=1024, drop_input=.2,
 
 
 def build_model(model_prm=None, input_var=None, input_size=4096,
-                grad_clip=100):
+                grad_clip=100, forget_bias=1.0):
     """Create localization model
     """
     if model_prm.startswith('mlp:'):
@@ -58,7 +60,7 @@ def build_model(model_prm=None, input_var=None, input_size=4096,
         n_outputs, seq_length, width, depth = user_prm
         network = build_lstm(input_var, int(seq_length), int(depth),
                              int(width), input_size=input_size,
-                             grad_clip=grad_clip)
+                             grad_clip=grad_clip, forget_bias=forget_bias)
     else:
         raise ValueError("Unrecognized model type " + model_prm)
 
