@@ -76,10 +76,10 @@ def set_model(model_type, num_proposal=None, depth=None, width=None,
 
 
 def main(id_fmt, id_offset, model_type, num_proposal, depth, width,
-         seq_length, drop_in, drop_out, grad_clip, batch_size, n_epoch, l_rate,
-         w_pos, alpha, beta, opt_rule, opt_prm, reg, rng_seed, init_model,
-         shuffle, snapshot_freq, output_dir, ds_prefix, ds_suffix, debug,
-         gpu, serial_jobs, idle_time, verbose):
+         seq_length, drop_in, drop_out, grad_clip, forget_bias, batch_size,
+         n_epoch, l_rate, w_pos, alpha, beta, opt_rule, opt_prm, reg, rng_seed,
+         init_model, shuffle, snapshot_freq, output_dir, ds_prefix, ds_suffix,
+         debug, gpu, serial_jobs, idle_time, verbose):
     # Set dir for logs, snapshots, etc.
     if output_dir is None:
         output_dir = ds_prefix
@@ -126,9 +126,9 @@ def main(id_fmt, id_offset, model_type, num_proposal, depth, width,
                 '-lr', str(prm[0, i]), '-dp', ds_prefix, '-ds', ds_suffix,
                 '-sf', str(snapshot_freq), '-bz', str(batch_size), '-w+',
                 str(prm[5, i]), '-om', OPT_CHOICES[prm[4, i].astype(int)],
-                '-gc', str(grad_clip), '-r', reg, '-b', str(prm[6, i])] +
-               include_init_model + opt_prm + rng_prm + debug_mode +
-               shuffle_prm)
+                '-gc', str(grad_clip), '-r', reg, '-b', str(prm[6, i]),
+                '-fb', str(forget_bias)] + include_init_model + opt_prm +
+               rng_prm + debug_mode + shuffle_prm)
         pid_pool[exp_id] = [cmd, None]
 
     launch_jobs(pid_pool, serial_jobs, gpu, verbose, idle_time)
@@ -154,6 +154,8 @@ if __name__ == '__main__':
                    help='Mini batch size')
     p.add_argument('-gc', '--grad_clip', default=100, type=float,
                    help='Gradient clipping')
+    p.add_argument('-fb', '--forget_bias', default=0, type=float,
+                   help='Set bias of forget gate on LSTM')
     p.add_argument('-lr', '--l_rate', default=L_RATE, nargs='+', type=float,
                    help='List of learning rate values')
     p.add_argument('-a', '--alpha', default=ALPHA, nargs='+', type=float,
