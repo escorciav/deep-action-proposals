@@ -137,11 +137,11 @@ def main(ref_file, conf_file, rootfile, exp_id, output_dir, suffix_fmt,
         conffile = (filename.split('_')[0] + '_conf' +
                     os.path.splitext(filename)[1])
         with h5py.File(conffile, 'w') as f:
-            dset = f.create_dataset("data", (idx_s.size, len(colnames)),
+            dset = f.create_dataset("data", (idx_s.size, conf_s.shape[1]),
                                     dtype=np.int32, chunks=True)
             dset.dims[0].label = 'batch'
             dset.dims[1].label = 'id'
-            dset[...] = np.array(conf_s[idx_s, colnames])
+            dset[...] = np.array(conf_s[idx_s, :])
             # Compatibility with previous code
             f.create_dataset('type', data=np.array(['ndarray']))
 
