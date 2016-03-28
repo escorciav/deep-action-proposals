@@ -6,16 +6,8 @@ Helper program to compute priors/proposals
 """
 import argparse
 
-from activitynet_helper import ActivityNet
+from datasets import Dataset
 from data_generation import compute_priors, dump_files
-from thumos14_helper import Thumos14
-
-
-def set_dataset_helper(dataset):
-    if dataset == 'activitynet':
-        return ActivityNet()
-    elif dataset == 'thumos14':
-        return Thumos14()
 
 
 def input_parse():
@@ -41,7 +33,7 @@ def input_parse():
 
 
 def main(ds_name, outprefix, n_proposals, T, iou_thr, i_thr, rng_seed):
-    ds_helper = set_dataset_helper(ds_name)
+    ds_helper = Dataset(ds_name)
     df_seg = ds_helper.segments_info()
 
     # Generate segments for training and priors for regression

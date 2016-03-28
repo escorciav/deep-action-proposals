@@ -1,18 +1,18 @@
 import argparse
 import glob
-import hickle as hkl
 import json
-import numpy as np
 import os
+
+import hickle as hkl
+import numpy as np
 import pandas as pd
 
-from model import build_model
-from model import read_model
+from datasets import Dataset
 from eval_model import nms_detections
 from eval_model import retrieve_proposals
+from model import build_model
+from model import read_model
 from utils import segment_format
-from activitynet_helper import ActivityNet
-from thumos14_helper import Thumos14
 
 
 def filter_proposals(proposal_df):
@@ -132,7 +132,7 @@ def input_parser():
                    help='hdf5 file containing the raw C3D features.')
     p.add_argument('-ff', '--file_filter',
                    help='File containing a list of videos to be evaluated')
-    p.add_argument('-ow', '--overwrite', type=bool, default=False,
+    p.add_argument('-ow', '--overwrite', action='store_true',
                    help='Overwrite results.')
     p.add_argument('-c3d-size', '--c3d_size', type=int, default=16,
                    help='Size of C3D receptive field.')
@@ -144,8 +144,8 @@ def input_parser():
                    help='Video sliding step size.')
     p.add_argument('-t', '--T', type=int, default=256,
                    help='Segment canonical size.')
-    p.add_argument('-nms', '--nms', type=bool, default=True,
-                   help='Apply nms to retrieved proposals')
+    p.add_argument('-nms', '--no_nms', dest='nms', action='store_false',
+                   help='Non-maxima-Supression on retrieved proposals')
     p.add_argument('-pr', '--priors_filename',
                    help='File with priors used in training.')
     return p
@@ -161,14 +161,8 @@ def main(model, network_params, eval_id, exp_id, output_dir,
     ###########################################################################
     # Defining dataset.
     dset_id, subset = dataset.lower().split('-')
-    if dset_id == 'thumos14':
-        th14 = Thumos14()
-        df = th14.segments_info(subset)
-    elif dset_id == 'activitynet':
-        anv12 = ActivityNet()
-        df = anv12.segments_info(subset)
-    else:
-        raise ValueError('Dataset ID not known.')
+    dset = Dataset(dset_id)
+    df = dset.segments_info(subset)
     # Defining feature path.
     if not feat_file:
         feat_file = 'data/{}/c3d/{}_c3d_temporal.hdf5'.format(dset_id, subset)
