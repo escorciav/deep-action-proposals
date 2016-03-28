@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 
 from utils import count_frames, file_as_folder
-# TODO: Make a class packing all this function
 
 
 def dump_video_list(filename):
