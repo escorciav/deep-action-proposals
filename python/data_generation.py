@@ -4,8 +4,10 @@ import warnings
 import hickle as hkl
 import numpy as np
 import pandas as pd
+from sklearn.cluster import KMeans
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
-from baseline import TempPriorsNoScale
 from utils import sampling_with_uniform_groups
 from utils import segment_format, segment_unit_scaling
 from utils import segment_intersection, segment_iou
@@ -76,7 +78,10 @@ def compute_priors(df, T, K=200, iou_thr=0.5, norm_fcn=wrapper_unit_scaling,
         segment_lst[i], gt_list_i, n_gt_lst[i] = generate_segments(
             T, L[i], gtruth_b, method='iou', rng_seed=rng_seed, i_thr=i_thr)
         n_seg[i] = segment_lst[i].shape[0]
-        mapped_gt_lst[i] = np.vstack(gt_list_i)
+        if len(gt_list_i) > 0:
+            mapped_gt_lst[i] = np.vstack(gt_list_i)
+        else:
+            mapped_gt_lst[i] = np.empty((0, 2))
 
     # Standardize mapped annotations into a common reference + Normalization
     segments = np.vstack(segment_lst)
@@ -405,3 +410,44 @@ def load_files(priors_file=None, ref_file=None, conf_file=None):
     else:
         conf = None
     return priors, df, conf
+
+
+class TempPriorsNoScale(object):
+    def __init__(self, n_prop=200, rng_seed=None):
+        self.n_prop = n_prop
+        self.priors = None
+        self.model = Pipeline([('scaling', StandardScaler()),
+                               ('kmeans', KMeans(n_prop,
+                                                 random_state=rng_seed))])
+
+    def fit(self, X):
+        """KMeans over temporal locations features
+        """
+        self.model.fit(X)
+        norm_priors = self.model.steps[1][1].cluster_centers_
+        mu = self.model.steps[0][1].mean_
+        sigma = self.model.steps[0][1].scale_
+        self.priors = norm_priors * sigma + mu
+
+    def proposals(self, X, return_index=False):
+        """Retrieve proposals for a video based on its duration
+
+        Parameters
+        ----------
+        X : ndarray
+            m x 1 array with video duration
+
+        Outputs
+        -------
+        Y : ndarray
+            m * n_prop x 2 array with temporal proposals
+
+        """
+        if self.priors is None:
+            raise ValueError('model has not been trained')
+
+        Y = np.kron(np.expand_dims(X, 1), self.priors)
+        idx = np.repeat(np.arange(X.shape[0]), self.n_prop)
+        if return_index:
+            return Y, idx
+        return Y
