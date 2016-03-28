@@ -1,53 +1,10 @@
 import os
-import shutil
 import tempfile
 import unittest
-from subprocess import check_output
 
 import numpy as np
 
 import utilities
-from utilities import c3d_input_file_generator
-
-
-class test_c3d_utilities(unittest.TestCase):
-    def test_c3d_input_file_generator(self):
-        filename = 'not_existent_file'
-        self.assertRaises(ValueError, c3d_input_file_generator, filename, '')
-
-        with tempfile.NamedTemporaryFile(delete=False) as f:
-            f.write('video-name num-frame i-frame duration label\n'
-                    'my_video 50 0 22 0\nmy_video 50 10 33 1\n'
-                    'myvideo2 30 0 15 2\n')
-        filename = f.name
-        file_in_out = [filename + '.in', filename + '.out']
-        dir_out = filename + '_dir'
-        summary = utilities.c3d_input_file_generator(filename, file_in_out,
-                                                     output_folder=dir_out)
-        self.assertTrue(summary['success'])
-        self.assertEqual(1.0/3, summary['pctg-skipped-segments'])
-        self.assertEqual(4.0/3, summary['ratio-clips-segments'])
-        # dummy test to double check that output has the right number of
-        # clips
-        self.assertTrue(os.path.isfile(filename + '.in'))
-        rst = check_output(['wc', '-l', filename + '.in']).split(' ')[0]
-        self.assertEqual('4', rst)
-        self.assertTrue(os.path.isfile(filename + '.out'))
-        rst = check_output(['wc', '-l', filename + '.out']).split(' ')[0]
-        self.assertEqual('4', rst)
-        self.assertTrue(os.path.isdir(filename + '_dir'))
-        os.remove(filename)
-        os.remove(filename + '.in')
-        os.remove(filename + '.out')
-        shutil.rmtree(filename + '_dir')
-
-    @unittest.skip("A contribution is required")
-    def c3d_read_feature(self):
-        pass
-
-    @unittest.skip("A contribution is required")
-    def test_c3d_stack_feature(self):
-        pass
 
 
 class test_general_utilities(unittest.TestCase):
