@@ -12,7 +12,7 @@ from eval_model import nms_detections
 from eval_model import retrieve_proposals
 from model import build_model
 from model import read_model
-from utils import segment_format
+from utilities import segment_format
 
 
 def filter_proposals(proposal_df):

@@ -8,9 +8,9 @@ from sklearn.cluster import KMeans
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from utils import sampling_with_uniform_groups
-from utils import segment_format, segment_unit_scaling
-from utils import segment_intersection, segment_iou
+from utilities import sampling_with_uniform_groups
+from utilities import segment_format, segment_unit_scaling
+from utilities import segment_intersection, segment_iou
 
 RATIO_INTERVALS = [0, 0.05, 0.15, 0.4, np.inf]
 REQ_INFO_CP = ['video-name', 'f-init', 'n-frames', 'video-frames']

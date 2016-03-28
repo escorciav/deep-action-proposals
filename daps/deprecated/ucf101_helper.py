@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from utils import count_frames, file_as_folder
+from utilities import count_frames, file_as_folder
 
 
 def dump_video_list(filename):

@@ -13,7 +13,7 @@ from sklearn.metrics import average_precision_score, roc_auc_score
 
 from model import weigthed_binary_crossentropy
 from model import build_model, read_model
-from utils import balance_labels
+from utilities import balance_labels
 
 
 # ################# Load toy-example of Thumos14 dataset ######################

@@ -4,8 +4,8 @@ import pandas as pd
 from baseline import BaselineData, TempPriorsNoScale
 from baseline import proposals_per_video
 
-from utils import dump_json
-from utils import segment_format
+from utilities import dump_json
+from utilities import segment_format
 
 NUM_PROPOSALS = [1, 10] + range(100, 1000, 100) + range(1000, 10001, 1000)
 

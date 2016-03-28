@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
 
-from utils import frame_rate, video_duration
+from utilities import frame_rate, video_duration
 
 
 def video_stats(filename):

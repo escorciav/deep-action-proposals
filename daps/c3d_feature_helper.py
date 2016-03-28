@@ -1,8 +1,8 @@
 import h5py
 import numpy as np
 
-from utils import feature_1dconcat
-from utils import feature_1dpyramid
+from utilities import feature_1dconcat
+from utilities import feature_1dpyramid
 
 
 class Feature(object):

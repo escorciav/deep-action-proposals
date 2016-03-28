@@ -4,7 +4,7 @@ import os
 from joblib import Parallel, delayed
 import pandas as pd
 
-from utils import dump_frames
+from utilities import dump_frames
 
 
 def dump_wrapper(filename, output_folder, baseformat, fullpath, video_path):

@@ -2,7 +2,7 @@ import lasagne
 import numpy as np
 
 from c3d_feature_helper import Feature
-from utils import segment_format
+from utilities import segment_format
 
 
 def forward_pass(network, input_data):
