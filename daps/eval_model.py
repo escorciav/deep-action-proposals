@@ -1,8 +1,8 @@
 import lasagne
 import numpy as np
 
-from c3d_feature_helper import Feature
-from utilities import segment_format
+from daps.c3d_feature_helper import Feature
+from daps.utilities import segment_format
 
 
 def forward_pass(network, input_data):

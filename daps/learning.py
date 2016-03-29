@@ -11,9 +11,9 @@ import theano
 import theano.tensor as T
 from sklearn.metrics import average_precision_score, roc_auc_score
 
-from model import weigthed_binary_crossentropy
-from model import build_model, read_model
-from utilities import balance_labels
+from daps.model import weigthed_binary_crossentropy
+from daps.model import build_model, read_model
+from daps.utilities import balance_labels
 
 
 # ################# Load toy-example of Thumos14 dataset ######################

@@ -6,7 +6,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from utilities import levenshtein_distance
+from daps.utilities import levenshtein_distance
 
 ACTIVITYNET_ANNOTATION_FILE = 'activity_net.v1-2.gt.json'
 ANET_SIMILAR_CLASS_IDS_WITH_THUMOS14 = [159, 82, 233, 224, 195,

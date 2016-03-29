@@ -1,10 +1,16 @@
+#!/usr/bin/env python
+"""
+
+Python program to dump frames from many videos
+
+"""
 import argparse
 import os
 
 from joblib import Parallel, delayed
 import pandas as pd
 
-from utilities import dump_frames
+from daps.utils.video import dump_frames
 
 
 def dump_wrapper(filename, output_folder, baseformat, fullpath, video_path):

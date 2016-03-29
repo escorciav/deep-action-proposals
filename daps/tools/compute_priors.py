@@ -6,8 +6,8 @@ Helper program to compute priors/proposals
 """
 import argparse
 
-from datasets import Dataset
-from data_generation import compute_priors, dump_files
+from daps.datasets import Dataset
+from daps.data_generation import compute_priors, dump_files
 
 
 def input_parse():

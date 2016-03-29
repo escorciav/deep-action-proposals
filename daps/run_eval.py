@@ -7,12 +7,12 @@ import hickle as hkl
 import numpy as np
 import pandas as pd
 
-from datasets import Dataset
-from eval_model import nms_detections
-from eval_model import retrieve_proposals
-from model import build_model
-from model import read_model
-from utilities import segment_format
+from daps.datasets import Dataset
+from daps.eval_model import nms_detections
+from daps.eval_model import retrieve_proposals
+from daps.model import build_model
+from daps.model import read_model
+from daps.utilities import segment_format
 
 
 def filter_proposals(proposal_df):

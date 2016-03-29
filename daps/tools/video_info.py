@@ -1,22 +1,27 @@
+#!/usr/bin/env python
+"""
+
+Python program to dump CSV with duration and frame rate of many videos
+
+"""
 import argparse
 
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
 
-from utilities import frame_rate, video_duration
+from daps.utils.video import duration, frame_rate
 
 
 def video_stats(filename):
     stats = []
-    stats.append(video_duration(filename))
+    stats.append(duration(filename))
     stats.append(frame_rate(filename))
     return stats
 
 
 def input_parse():
-    description = ('Extract frames of a bucnh of videos. The file-system '
-                   'organization is preserved if relative-path are used.')
+    description = ('Get information (duration, frame-rate) of several videos.')
     p = argparse.ArgumentParser(description=description)
     p.add_argument('input_file',
                    help='CSV file with list of videos to process')

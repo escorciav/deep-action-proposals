@@ -3,7 +3,7 @@ import unittest
 import nose.tools as nt
 import pandas as pd
 
-from datasets import Dataset, DatasetBase, ActivityNet, Thumos14
+from daps.datasets import Dataset, DatasetBase, ActivityNet, Thumos14
 
 
 def test_Dataset():

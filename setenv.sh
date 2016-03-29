@@ -10,4 +10,4 @@ source activate deep-action-prop-gen
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
 # Add source to PYTHONPATH
-export PYTHONPATH=$PYTHONPATH:$DIR/daps
+export PYTHONPATH=$PYTHONPATH:$DIR

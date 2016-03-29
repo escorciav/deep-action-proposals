@@ -4,7 +4,7 @@ import numpy as np
 import theano
 import theano.tensor as T
 
-from model import weigthed_binary_crossentropy
+from daps.model import weigthed_binary_crossentropy
 
 
 class test_loss_functions(unittest.TestCase):

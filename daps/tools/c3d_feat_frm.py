@@ -1,5 +1,9 @@
 #!/usr/bin/env python
+"""
 
+Wrapper around c3d binary tool: extract_image_features.bin
+
+"""
 import argparse
 import json
 import math
@@ -9,7 +13,7 @@ from subprocess import CalledProcessError, check_output, STDOUT
 
 import pandas as pd
 
-import prototxt
+import daps.prototxt as prototxt
 
 FILE_DIR = os.path.dirname(os.path.realpath(__file__))
 C3D_FEAT_EXTRACT = os.path.join(FILE_DIR, '..', '..', '3rdparty', 'C3D',
