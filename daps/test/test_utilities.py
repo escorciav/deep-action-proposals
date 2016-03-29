@@ -1,10 +1,8 @@
-import os
-import tempfile
 import unittest
 
 import numpy as np
 
-import utilities
+import daps.utilities as utilities
 
 
 class test_general_utilities(unittest.TestCase):
@@ -57,27 +55,6 @@ class test_general_utilities(unittest.TestCase):
         for i in range(x.size / batch_size):
             mini_batch = rst[i * batch_size:(i + 1) * batch_size]
             self.assertGreater(mini_batch.sum(), 0)
-
-
-def test_count_frames():
-    filename = 'not_existent_video.avi'
-    assert utilities.count_frames(filename) == 0
-    filename = 'data/videos/example.mp4'
-    assert utilities.count_frames(filename) == 1507
-    assert utilities.count_frames(filename, 'ffprobe') == 1507
-    assert utilities.count_frames(os.path.splitext(filename)[0],
-                                  method='dir') == 1507
-
-
-def test_frame_rate():
-    assert isinstance(utilities.frame_rate('data/videos/examples.mp4'), float)
-    assert utilities.frame_rate('nonexistent.video') == 0.0
-
-
-def test_video_duration():
-    assert isinstance(utilities.video_duration('data/videos/examples.mp4'),
-                      float)
-    assert utilities.video_duration('nonexistent.video') == 0.0
 
 
 class test_sampling_utilities(unittest.TestCase):
@@ -140,19 +117,3 @@ class test_segment_utilities(unittest.TestCase):
         a = np.array([[10, 3]])
         res = np.array([[10, 12]])
         np.testing.assert_array_equal(utilities.segment_format(a, 'd2b'), res)
-
-
-class test_video_utilities(unittest.TestCase):
-    def setUp(self):
-        self.video = 'data/videos/example.mp4'
-        self.video_dir = 'data/videos/example'
-
-    @unittest.skip("Skipping until correct installation of OpenCV")
-    def test_dump_video(self):
-        with tempfile.NamedTemporaryFile() as f:
-            filename = f.name
-        clip = utilities.get_clip(self.video, 3, 30)
-        utilities.dump_video(filename, clip)
-        self.assertTrue(os.path.isfile(filename))
-        self.assertTrue(utilities.count_frames(filename) > 0)
-        os.remove(filename)
