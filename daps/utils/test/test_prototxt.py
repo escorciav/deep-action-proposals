@@ -1,6 +1,6 @@
 import unittest
 
-import daps.prototxt as prototxt
+import daps.utils.prototxt as prototxt
 
 
 class TestMultilineStrings(unittest.TestCase):

@@ -13,7 +13,7 @@ from subprocess import CalledProcessError, check_output, STDOUT
 
 import pandas as pd
 
-import daps.prototxt as prototxt
+import daps.utils.prototxt as prototxt
 
 FILE_DIR = os.path.dirname(os.path.realpath(__file__))
 C3D_FEAT_EXTRACT = os.path.join(FILE_DIR, '..', '..', '3rdparty', 'C3D',
