@@ -1,7 +1,7 @@
 import lasagne
 import numpy as np
 
-from daps.c3d_feature_helper import Feature
+from daps.c3d_encoder import Feature
 from daps.utils.segment import format as segment_format
 
 

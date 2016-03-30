@@ -3,17 +3,7 @@ import unittest
 import nose.tools as nt
 import numpy as np
 
-from daps.c3d_feature_helper import pyramid1d
-
-
-class TestFeature(unittest.TestCase):
-    @unittest.skip("A contribution is required")
-    def test_read_feat():
-        pass
-
-    @unittest.skip("A contribution is required")
-    def test_read_feat_batch_from_video():
-        pass
+from daps.utils.pooling import pyramid1d
 
 
 @unittest.skip("A contribution is required")

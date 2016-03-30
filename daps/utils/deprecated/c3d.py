@@ -7,8 +7,8 @@ import numpy as np
 import h5py
 import hickle as hkl
 
-from daps.c3d_feature_helper import pyramid1d
 from daps.utils.c3d import c3d_read_feature
+from daps.utils.pooling import pyramid1d
 
 
 def c3d_stack_feature(dirname, files=None, layer='.fc7-1', savefile=None,

@@ -13,7 +13,7 @@ import h5py
 import natsort
 import numpy as np
 
-from daps.c3d_feature_helper import Feature
+from daps.c3d_encoder import Feature
 from daps.data_generation import load_files
 
 
