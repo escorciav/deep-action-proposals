@@ -122,6 +122,52 @@ def iou(target_segments, test_segments):
     return iou
 
 
+def nms_detections(dets, score, overlap=0.3):
+    """
+    Non-maximum suppression: Greedily select high-scoring detections and
+    skip detections that are significantly covered by a previously
+    selected detection.
+
+    This version is translated from Matlab code by Tomasz Malisiewicz,
+    who sped up Pedro Felzenszwalb's code.
+
+    Parameters
+    ----------
+    dets : ndarray.
+        Each row is ['f-init', 'f-end']
+    score : 1darray.
+        Detection score.
+    overlap : float.
+        Minimum overlap ratio (0.3 default).
+
+    Outputs
+    -------
+    dets : ndarray.
+        Remaining after suppression.
+    """
+    t1 = dets[:, 0]
+    t2 = dets[:, 1]
+    ind = np.argsort(score)
+
+    area = (t2 - t1 + 1).astype(float)
+
+    pick = []
+    while len(ind) > 0:
+        i = ind[-1]
+        pick.append(i)
+        ind = ind[:-1]
+
+        tt1 = np.maximum(t1[i], t1[ind])
+        tt2 = np.minimum(t2[i], t2[ind])
+
+        wh = np.maximum(0., tt2 - tt1 + 1.0)
+        o = wh / (area[i] + area[ind] - wh)
+
+        ind = ind[np.nonzero(o <= overlap)[0]]
+
+    return dets[pick, :], score[pick]
+
+
 def unit_scaling(X, T, init=None, copy=False):
     """Scale segments onto a unit reference scale [0, 1]
 

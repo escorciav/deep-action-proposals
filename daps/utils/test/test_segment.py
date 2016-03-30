@@ -43,6 +43,10 @@ class test_segment_utilities(unittest.TestCase):
         # segment to right
         self.assertEqual(6/15.0, rst[2, 3])
 
+    @unittest.skip("A contribution is required")
+    def test_nms_detection(self):
+        pass
+
     def test_unit_scaling(self):
         a = np.random.rand(1)
         self.assertRaises(ValueError, segment.unit_scaling, a, 2)
