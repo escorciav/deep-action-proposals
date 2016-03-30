@@ -8,7 +8,7 @@ from sklearn.cluster import KMeans
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from daps.utilities import sampling_with_uniform_groups
+from daps.utils.extra import sampling_with_uniform_groups
 from daps.utils.segment import format as segment_format
 from daps.utils.segment import intersection as segment_intersection
 from daps.utils.segment import iou as segment_iou

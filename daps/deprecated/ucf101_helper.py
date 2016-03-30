@@ -3,8 +3,8 @@ import os
 import numpy as np
 import pandas as pd
 
+from daps.utils.extra import file_as_folder
 from daps.utils.video import count_frames
-from daps.utilities import file_as_folder
 
 
 def dump_video_list(filename):

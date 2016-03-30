@@ -4,7 +4,7 @@ import pandas as pd
 from baseline import BaselineData, TempPriorsNoScale
 from baseline import proposals_per_video
 
-from daps.utilities import dump_json
+from daps.utils.extra import dump_json
 from daps.utils.segment import format as segment_format
 
 NUM_PROPOSALS = [1, 10] + range(100, 1000, 100) + range(1000, 10001, 1000)
