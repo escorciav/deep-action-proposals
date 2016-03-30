@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 
-Wrapper to dispatch several learners
+Dispatch multiple learning processes
 
 """
 import argparse
@@ -121,7 +121,7 @@ def main(id_fmt, id_offset, model_type, num_proposal, depth, width,
         exp_id = id_fmt.format(i + id_offset)
         model = set_model(model_type, num_proposal, prm[2, i], prm[3, i],
                           seq_length, drop_in, drop_out)
-        cmd = (['python', 'python/learning.py', '-id', exp_id, '-m', model,
+        cmd = (['python', 'daps/learning.py', '-id', exp_id, '-m', model,
                 '-a', str(prm[1, i]), '-ne', str(n_epoch), '-od', output_dir,
                 '-lr', str(prm[0, i]), '-dp', ds_prefix, '-ds', ds_suffix,
                 '-sf', str(snapshot_freq), '-bz', str(batch_size), '-w+',

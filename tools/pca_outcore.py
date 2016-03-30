@@ -12,6 +12,16 @@ import hickle as hkl
 import numpy as np
 
 
+def input_parse():
+    description = 'Compute PCA with A.T * A computation out of core'
+    p = argparse.ArgumentParser(description=description)
+    p.add_argument('dsfile', help='HDF5-file with features')
+    p.add_argument('pcafile', help='HDF5-file with PCA results')
+    p.add_argument('-ll', '--log_loop', default=500, type=int,
+                   help='Verbose in terms of number of videos')
+    return p
+
+
 def main(dsfile, pcafile, t_size=16, t_stride=8, source='c3d_features',
          log_loop=100):
     print time.ctime(), 'start: loading hdf5'
@@ -58,16 +68,6 @@ def main(dsfile, pcafile, t_size=16, t_stride=8, source='c3d_features',
 
     print time.ctime(), 'serializing ...'
     hkl.dump({'x_mean': x_mean, 'U': U, 'S': S, 'n_samples': n}, pcafile)
-
-
-def input_parse():
-    description = 'Compute PCA with A.T * A computation out of core'
-    p = argparse.ArgumentParser(description=description)
-    p.add_argument('dsfile', help='HDF5-file with features')
-    p.add_argument('pcafile', help='HDF5-file with PCA results')
-    p.add_argument('-ll', '--log_loop', default=500, type=int,
-                   help='Verbose in terms of number of videos')
-    return p
 
 
 if __name__ == '__main__':
