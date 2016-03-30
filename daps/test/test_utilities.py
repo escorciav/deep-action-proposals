@@ -10,27 +10,6 @@ class test_general_utilities(unittest.TestCase):
     def test_idx_of_queries(self):
         pass
 
-    def test_feature_1dpyramid(self):
-        x = np.array([[0, 4],
-                      [4, 2],
-                      [0, 4],
-                      [2, 0],
-                      [1, 2],
-                      [1, 4],
-                      [3, 4],
-                      [1, 4],
-                      [1, 1],
-                      [4, 2]])
-        self.assertEqual((2,), utilities.feature_1dpyramid(x).shape)
-        py1_x = utilities.feature_1dpyramid(x, 1)
-        self.assertEqual((6,), py1_x.shape)
-        rst = np.array([2, 3])/np.sqrt(13)
-        np.testing.assert_array_almost_equal(rst, py1_x[4:6])
-        py2_x = utilities.feature_1dpyramid(x, 2)
-        self.assertEqual((14,), py2_x.shape)
-        rst = np.array([1, 2])/np.sqrt(5)
-        np.testing.assert_array_almost_equal(rst, py2_x[8:10])
-
     def test_uniform_batches(self):
         batch_size = 4
         x = np.array([1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0])
