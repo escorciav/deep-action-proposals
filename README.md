@@ -63,7 +63,7 @@ An example of this folder is [here](example/metadata/)
 
 1. Dump frames of videos.
 
-> Why? we choose raw-images over raw-videos because weird behaviors happened using the video interface. Maybe, your opencv-ffmpeg version is not appropiate.
+   > Why? we choose raw-images over raw-videos because weird behaviors happened using the video interface. Maybe, your opencv-ffmpeg version is not appropiate.
 
 2. Create CSV for using `daps.utils.c3d.input_file_generator`.
 
@@ -71,13 +71,13 @@ An example of this folder is [here](example/metadata/)
 
 4. Check that CSV generate in the step before point to a correct path.
 
-> Tip: If you need to modify them, you may want to do it in [bash](3rdparty/README.md#useful-bash-commands).
+   > Tip: If you need to modify them, you may want to do it in [bash](3rdparty/README.md#useful-bash-commands).
 
 5. Use our python program `tools/c3d_feat_frm.py` to extract c3d features. For example:
 
-```
-python/tools/c3d_feat_frm.py data/models/conv3d_deepnetA_sport1m_iter_1900000.caffemodel output.c3d fc7-1 -c '{"seq_source": "input.c3d", "mean_file": "data/models/sport1m_train16_128_mean.binaryproto", "batch_size": 50, "use_image": "true"}' -v
-```
+   ```
+   python/tools/c3d_feat_frm.py data/models/conv3d_deepnetA_sport1m_iter_1900000.caffemodel output.c3d fc7-1 -c '{"seq_source": "input.c3d", "mean_file": "data/models/sport1m_train16_128_mean.binaryproto", "batch_size": 50, "use_image": "true"}' -v
+   ```
 
 6. Once you extract C3D codes of your videos, you should save it as HDF5. We save a `Group` for each video and one `Dataset` with C3D features on each group.
 The name of each `Group` corresponds to the video-id, while the name used for `Dataset` is `c3d-features`. Do not forget to set `daps.c3d_encoder.Feature` accordingly to your stride and pooling strategy.
