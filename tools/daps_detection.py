@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+"""
+
+Helper program to generate proposals on videos with DAPs.
+It makes use of many data-structures of our code to produce a meaningful
+results. It serve its purpose when your data-flow is similar to us.
+
+"""
 import argparse
 import glob
 import json
@@ -112,7 +120,8 @@ def wrapper_retrieve_proposals(video_df, network, proposal_dir, T=256,
 
 
 def input_parser():
-    description = 'Evaluates a deep action proposal model.'
+    description = ('Deep Action Proposals Inference on many videos. It makes '
+                   'intense use of our data-structures and data-flow.')
     p = argparse.ArgumentParser(description=description)
     p.add_argument('model',
                    help='npz file with trained model.')
