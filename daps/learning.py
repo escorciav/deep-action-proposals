@@ -105,7 +105,7 @@ def optimization(network, input_var, priors, alpha, beta, w1, w0,
     w1_train, w1_val = w1
     w0_train, w0_val = w0
 
-    target_conf_var = T.imatrix('targets_conf')
+    target_conf_var = T.fmatrix('targets_conf')
     target_loc_var = T.as_tensor_variable(priors, name='targets_loc')
     w1_train_var, w0_train_var = T.constant(w1_train), T.constant(w0_train)
     w1_val_var, w0_val_var = T.constant(w1_val), T.constant(w0_val)
@@ -113,14 +113,21 @@ def optimization(network, input_var, priors, alpha, beta, w1, w0,
     # Loss expression for training, i.e., a scalar objective we want to
     # minimize:
     loc, conf = lasagne.layers.get_output(network)
-    loss_match = lasagne.objectives.squared_error(loc, target_loc_var)
+
+    # Localization loss: penalize locations different from anchors for
+    # anchors matching actions
+    loss_match = (loc - target_loc_var)**2 * T.tile(target_conf_var, (1, 2))
+
+    # Confidence loss: anchors matching actions should have high confidence
     loss_conf = weigthed_binary_crossentropy(conf, target_conf_var,
                                              w0_train_var, w1_train_var)
+
+    # Regularization term
     loss_reg = lasagne.regularization.regularize_network_params(network,
                                                                 penalty)
     loss = alpha * loss_match.mean() + loss_conf.mean() + beta * loss_reg
 
-    # We could add some weight decay as well here, see lasagne.regularization.
+    # Optimization
     params = lasagne.layers.get_all_params(network, trainable=True)
     updates = opt_method(loss, params, **opt_prm)
 
@@ -132,8 +139,7 @@ def optimization(network, input_var, priors, alpha, beta, w1, w0,
                                                        target_loc_var)
     test_loss_conf = weigthed_binary_crossentropy(test_conf, target_conf_var,
                                                   w0_val_var, w1_val_var)
-    test_loss = (alpha * test_loss_match.mean() + test_loss_conf.mean() +
-                 beta * loss_reg)
+    test_loss = alpha * test_loss_match.mean() + test_loss_conf.mean()
 
     # Compile a function performing a training step on a mini-batch (by giving
     # the updates dictionary) and returning the corresponding training loss:
@@ -341,11 +347,11 @@ def input_parser():
                    'point')
     p.add_argument('-i', '--init_model', nargs=2, default=None,
                    help=h_initmodel)
-    h_dsprefix = 'Fullpath prefix for train/val dataset'
     p.add_argument('-sf', '--snapshot_freq', default=150, type=int,
                    help='Frequency of snapshots')
     p.add_argument('-sh', '--shuffle', action='store_true',
                    help='Shuffle data samples at every iteration')
+    h_dsprefix = 'Fullpath prefix for train/val dataset'
     dflt_dsprefix = os.path.join(
         os.path.dirname(os.path.realpath(__file__)), '..', 'data',
         'experiments', 'thumos14', 'a01')
