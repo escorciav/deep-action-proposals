@@ -151,7 +151,7 @@ def input_parser():
                    help='Video sliding step size.')
     p.add_argument('-t', '--T', type=int, default=256,
                    help='Segment canonical size.')
-    p.add_argument('-nms', '--no_nms', dest='nms', action='store_false',
+    p.add_argument('-nms', '--no_nms', dest='nms', type=float, default=0.65,
                    help='Non-maxima-Supression on retrieved proposals')
     p.add_argument('-pr', '--priors_filename',
                    help='File with priors used in training.')
@@ -161,7 +161,7 @@ def input_parser():
 def main(model, network_params, eval_id, exp_id, output_dir,
          input_size=4096, dataset='thumos14-val', feat_file=None,
          file_filter=None, overwrite=False, c3d_size=16, c3d_stride=8,
-         pool_type='mean', stride=128, T=256, nms=True, priors_filename=None):
+         pool_type='mean', stride=128, T=256, nms=0.65, priors_filename=None):
 
     ###########################################################################
     # Loading dataset info.
@@ -245,8 +245,8 @@ def main(model, network_params, eval_id, exp_id, output_dir,
     proposal_df = load_proposals(proposal_dir, stride=stride, T=T,
                                  file_filter=file_filter,
                                  priors_filename=priors_filename)
-    if nms:
-        proposal_df = wrapper_nms(proposal_df)
+    if nms > 0:
+        proposal_df = wrapper_nms(proposal_df, nms)
     # Store results
     proposal_df.to_csv(result_filename, sep=' ', index=False)
     print 'Have a good day!'
