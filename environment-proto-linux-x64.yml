@@ -96,7 +96,4 @@ dependencies:
   - jupyter-client==4.1.1
   - jupyter-console==4.1.0
   - jupyter-core==4.0.6
-  - lasagne==0.2.dev1
   - leveldb==0.193
-  - theano==0.8.0
-

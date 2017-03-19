@@ -1,3 +1,13 @@
+# Data (shorcut folder to allocate relevant data for this project)
+data
+
+# Bash/Python scripts for repetitive task
+activate*.sh
+lazy_*.[sh, py]
+
+# Environments YAML files
+environment-*.yml
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
